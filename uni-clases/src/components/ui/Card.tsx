@@ -8,7 +8,7 @@ export function Card({
   return (
     <div
       className={cx(
-        "relative rounded-2xl border border-white/10 bg-white/6 shadow-[0_16px_60px_-28px_var(--shadow)] backdrop-blur",
+        "relative rounded-2xl border border-white/10 bg-white/8 shadow-[0_16px_60px_-28px_var(--shadow)] backdrop-blur-none sm:bg-white/6 sm:backdrop-blur",
         className,
       )}
       {...props}

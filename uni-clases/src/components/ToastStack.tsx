@@ -23,7 +23,7 @@ export default function ToastStack({
         <div
           key={t.id}
           className={cx(
-            "u-fade-up rounded-2xl border p-4 shadow-[0_18px_60px_-34px_var(--shadow)] backdrop-blur",
+            "u-fade-up rounded-2xl border p-4 shadow-[0_18px_60px_-34px_var(--shadow)] backdrop-blur-none sm:backdrop-blur",
             kindStyles[t.kind],
           )}
           style={{ animationDelay: `${Math.min(idx * 45, 180)}ms` }}

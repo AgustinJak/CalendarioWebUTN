@@ -59,6 +59,14 @@ body::before {
   background-repeat: no-repeat;
 }
 
+/* Mobile perf: fixed + backdrop-filter can glitch while fast scrolling (blue band).
+   Let the background scroll normally on small screens to avoid artifacts. */
+@media (max-width: 640px) {
+  body::before {
+    position: absolute;
+  }
+}
+
 ::selection {
   background: rgba(98, 210, 247, 0.26);
 }
