@@ -8,12 +8,13 @@ import { Card, CardBody, CardHeader } from "./ui/Card";
 import { Input, Label, Select, Textarea } from "./ui/Field";
 
 function timeLabel(iso: string) {
-  return new Intl.DateTimeFormat("es-AR", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
+  // Short + stable (avoids "p. m." wrapping/overflow on mobile).
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm} ${hh}:${mi}`;
 }
 
 function extractApiError(x: unknown): string | undefined {
@@ -314,31 +315,32 @@ export default function NotesPanelShared({
                   return (
                     <div
                       key={n.id}
-                      className="rounded-2xl border border-emerald-200/12 bg-emerald-200/8 p-4"
+                      className="rounded-2xl border border-emerald-200/12 bg-emerald-200/8 p-4 overflow-hidden"
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <div className="truncate font-medium text-white">
                             {n.title ?? "Apunte"}
                           </div>
-                          <div className="mt-1 text-xs text-white/60">
+                          <div className="mt-1 truncate text-xs text-white/60">
                             {course?.name ?? "Materia"} · {n.author_name}
                           </div>
-                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/55">
-                            <span className="rounded-full border border-white/10 bg-white/6 px-2 py-0.5">
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-white/55 sm:text-xs">
+                            <span className="inline-flex max-w-full items-center rounded-full border border-white/10 bg-white/6 px-2 py-0.5 tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
                               {timeLabel(n.created_at)}
                             </span>
-                            <span className="rounded-full border border-white/10 bg-white/6 px-2 py-0.5">
-                              Reportes: {n.report_count}
+                            <span className="inline-flex max-w-full items-center rounded-full border border-white/10 bg-white/6 px-2 py-0.5 tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
+                              Rep {n.report_count}
                             </span>
                           </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                           {n.attachment_url ? (
                             <Button
                               size="sm"
                               tone="accent"
                               variant="solid"
+                              className="w-full sm:w-auto"
                               onClick={() => {
                                 window.open(n.attachment_url!, "_blank", "noopener,noreferrer");
                               }}
@@ -351,6 +353,7 @@ export default function NotesPanelShared({
                               size="sm"
                               variant="soft"
                               tone="danger"
+                              className="w-full sm:w-auto"
                               onClick={() => void removePost(n.id)}
                             >
                               Eliminar
@@ -360,6 +363,7 @@ export default function NotesPanelShared({
                             size="sm"
                             variant="soft"
                             tone="danger"
+                            className="w-full sm:w-auto"
                             onClick={() => void report(n.id)}
                           >
                             Reportar
@@ -367,7 +371,7 @@ export default function NotesPanelShared({
                         </div>
                       </div>
                       {n.content ? (
-                        <div className="mt-3 text-sm text-white/70">{n.content}</div>
+                        <div className="mt-3 break-words text-sm text-white/70">{n.content}</div>
                       ) : null}
                     </div>
                   );
@@ -398,14 +402,14 @@ export default function NotesPanelShared({
                       return (
                         <div
                           key={p.id}
-                          className="rounded-2xl border border-amber-200/15 bg-amber-200/8 p-4"
+                          className="rounded-2xl border border-amber-200/15 bg-amber-200/8 p-4 overflow-hidden"
                         >
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="min-w-0">
                               <div className="truncate font-medium text-white">
                                 {p.title ?? "Apunte"}
                               </div>
-                              <div className="mt-1 text-xs text-white/55">
+                              <div className="mt-1 break-words text-[11px] text-white/55 sm:text-xs">
                                 {course?.name ?? "Materia"} · {p.author_name} · {timeLabel(p.created_at)} · Reportes: {p.report_count}
                               </div>
                             </div>
@@ -413,6 +417,7 @@ export default function NotesPanelShared({
                               size="sm"
                               variant="soft"
                               tone="warn"
+                              className="w-full sm:w-auto"
                               onClick={() => void loadFull(p.id)}
                             >
                               Ver contenido
@@ -426,6 +431,7 @@ export default function NotesPanelShared({
                                   size="sm"
                                   variant="solid"
                                   tone="accent"
+                                  className="w-full sm:w-auto"
                                   onClick={() => {
                                     window.open(full.attachment_url!, "_blank", "noopener,noreferrer");
                                   }}
