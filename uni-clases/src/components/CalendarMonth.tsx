@@ -159,7 +159,7 @@ export default function CalendarMonth({
         title={<span className="capitalize">{monthLabel(month)}</span>}
         subtitle="Clases en vivo (semanal)"
         right={
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <Button
               size="sm"
               variant="ghost"
@@ -187,8 +187,10 @@ export default function CalendarMonth({
               type="button"
               onClick={() => void syncMonthToGoogle()}
               disabled={!googleClientId}
+              className="w-full sm:w-auto"
             >
-              Cargar mes a Google Calendar
+              <span className="sm:hidden">Cargar a Google Calendar</span>
+              <span className="hidden sm:inline">Cargar mes a Google Calendar</span>
             </Button>
           </div>
         }

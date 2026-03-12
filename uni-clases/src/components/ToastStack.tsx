@@ -18,7 +18,7 @@ export default function ToastStack({
   onDismiss: (id: string) => void;
 }) {
   return (
-    <div className="fixed right-4 top-4 z-50 w-[min(420px,calc(100vw-32px))] space-y-3">
+    <div className="fixed left-4 right-4 top-4 z-50 space-y-3 sm:left-auto sm:right-4 sm:w-[420px]">
       {toasts.map((t, idx) => (
         <div
           key={t.id}
@@ -34,7 +34,9 @@ export default function ToastStack({
             <div className="min-w-0">
               <div className="truncate font-medium text-white">{t.title}</div>
               {t.description ? (
-                <div className="mt-1 text-sm text-white/70">{t.description}</div>
+                <div className="mt-1 break-words text-sm text-white/70">
+                  {t.description}
+                </div>
               ) : null}
               {t.actionLabel && t.onAction ? (
                 <button

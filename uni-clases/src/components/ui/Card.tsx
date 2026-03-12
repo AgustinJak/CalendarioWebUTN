@@ -26,7 +26,7 @@ export function CardHeader({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 p-5 pb-3">
+    <div className="flex flex-col gap-3 p-5 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div className="min-w-0">
         <div className="font-serif text-[19px] leading-tight tracking-tight text-white">
           {title}
@@ -35,7 +35,9 @@ export function CardHeader({
           <div className="mt-1 text-sm text-white/65">{subtitle}</div>
         ) : null}
       </div>
-      {right ? <div className="shrink-0">{right}</div> : null}
+      {right ? (
+        <div className="w-full min-w-0 sm:w-auto sm:shrink-0">{right}</div>
+      ) : null}
     </div>
   );
 }
