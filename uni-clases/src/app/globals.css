@@ -36,6 +36,7 @@ body {
 
 html {
   background: var(--bg);
+  color-scheme: dark;
 }
 
 body {
@@ -57,6 +58,17 @@ body::before {
     radial-gradient(800px 700px at 50% 92%, rgba(62, 230, 181, 0.14), transparent 60%),
     linear-gradient(180deg, var(--bg), var(--bg2));
   background-repeat: no-repeat;
+}
+
+/* Native form controls (Select dropdown background differs by browser/OS).
+   This makes the select list match our dark UI in Chromium-based browsers. */
+select {
+  color-scheme: dark;
+}
+select option,
+select optgroup {
+  background-color: #071724;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 /* Mobile perf: fixed + backdrop-filter can glitch while fast scrolling (blue band).
