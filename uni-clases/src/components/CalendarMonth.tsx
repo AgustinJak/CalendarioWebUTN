@@ -46,6 +46,9 @@ export default function CalendarMonth({
     title: string;
     description?: string;
     kind?: "info" | "ok" | "warn" | "danger";
+    actionLabel?: string;
+    onAction?: () => void;
+    ttlMs?: number;
   }) => void;
   googleClientId?: string | null;
 }) {
@@ -64,6 +67,14 @@ export default function CalendarMonth({
 
   const { requestToken } = useGoogleToken(googleClientId ?? undefined);
 
+  function openGoogleCalendar() {
+    return window.open(
+      "https://calendar.google.com/calendar/u/0/r",
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+
   async function syncMonthToGoogle() {
     try {
       if (!googleClientId) {
@@ -71,6 +82,7 @@ export default function CalendarMonth({
           title: "Falta configurar Google",
           description: "Setea NEXT_PUBLIC_GOOGLE_CLIENT_ID para sincronizar.",
           kind: "warn",
+          ttlMs: 6000,
         });
         return;
       }
@@ -79,6 +91,7 @@ export default function CalendarMonth({
         title: "Conectando con Google...",
         description: "Se abrira una ventana para autorizar si hace falta.",
         kind: "info",
+        ttlMs: 4500,
       });
 
       const token = await requestToken();
@@ -94,20 +107,49 @@ export default function CalendarMonth({
         rangeEnd,
       });
 
+      const successDesc = `Agregadas: ${inserted} · Ya existian: ${skipped}. Abrimos Google Calendar en 3s.`;
       onToast?.({
         title: "Google Calendar actualizado",
-        description: `Agregadas: ${inserted} · Ya existian: ${skipped}`,
+        description: successDesc,
         kind: "ok",
+        actionLabel: "Abrir ahora",
+        onAction: () => {
+          const w = openGoogleCalendar();
+          if (!w) {
+            onToast?.({
+              title: "Pop-up bloqueado",
+              description: "Permiti ventanas emergentes para abrir Google Calendar.",
+              kind: "warn",
+              ttlMs: 7000,
+            });
+          }
+        },
+        ttlMs: 9000,
       });
 
-      window.open(
-        "https://calendar.google.com/calendar/u/0/r",
-        "_blank",
-        "noopener,noreferrer",
-      );
+      // Nota: algunos navegadores bloquean popups si no es un gesto directo.
+      window.setTimeout(() => {
+        const w = openGoogleCalendar();
+        if (!w) {
+          onToast?.({
+            title: "No se pudo abrir Google Calendar",
+            description:
+              "Tu navegador bloqueo la pestaña. Usa 'Abrir ahora' o habilita popups.",
+            kind: "warn",
+            actionLabel: "Abrir ahora",
+            onAction: () => void openGoogleCalendar(),
+            ttlMs: 9000,
+          });
+        }
+      }, 3000);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      onToast?.({ title: "No se pudo sincronizar", description: msg, kind: "danger" });
+      onToast?.({
+        title: "No se pudo sincronizar",
+        description: msg,
+        kind: "danger",
+        ttlMs: 9000,
+      });
     }
   }
 
