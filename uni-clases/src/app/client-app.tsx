@@ -37,7 +37,11 @@ function etaLabel(totalMinutes: number) {
   return `en ${days} d`;
 }
 
-export default function ClientApp() {
+export default function ClientApp({
+  googleClientId,
+}: {
+  googleClientId: string | null;
+}) {
   const hydrated = useHydrated();
 
   // Avoid hydration mismatches caused by time/locale-dependent rendering (Intl, Date, etc).
@@ -46,10 +50,10 @@ export default function ClientApp() {
     return <div className="min-h-screen" />;
   }
 
-  return <ClientAppInner />;
+  return <ClientAppInner googleClientId={googleClientId} />;
 }
 
-function ClientAppInner() {
+function ClientAppInner({ googleClientId }: { googleClientId: string | null }) {
   const now = useNow(25_000);
   const { toasts, push, dismiss } = useToasts();
   const [selected, setSelected] = useState<Session | null>(null);
@@ -393,6 +397,7 @@ function ClientAppInner() {
                 scrollToActions();
               }}
               onToast={push}
+              googleClientId={googleClientId}
             />
           </div>
         </section>

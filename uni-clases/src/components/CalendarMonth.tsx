@@ -38,6 +38,7 @@ export default function CalendarMonth({
   initialMonth,
   onPickSession,
   onToast,
+  googleClientId,
 }: {
   initialMonth?: Date;
   onPickSession?: (session: Session) => void;
@@ -46,6 +47,7 @@ export default function CalendarMonth({
     description?: string;
     kind?: "info" | "ok" | "warn" | "danger";
   }) => void;
+  googleClientId?: string | null;
 }) {
   const today = useMemo(() => new Date(), []);
   const [month, setMonth] = useState(() => startOfDay(initialMonth ?? today));
@@ -60,8 +62,7 @@ export default function CalendarMonth({
 
   const dow = ["L", "M", "X", "J", "V", "S", "D"];
 
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  const { requestToken } = useGoogleToken(googleClientId);
+  const { requestToken } = useGoogleToken(googleClientId ?? undefined);
 
   async function syncMonthToGoogle() {
     try {
@@ -143,6 +144,7 @@ export default function CalendarMonth({
               tone="accent"
               type="button"
               onClick={() => void syncMonthToGoogle()}
+              disabled={!googleClientId}
             >
               Cargar mes a Google Calendar
             </Button>
