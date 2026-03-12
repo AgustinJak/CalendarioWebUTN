@@ -8,6 +8,10 @@ function badRequest(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status });
 }
 
+type DeleteBody = {
+  deleteToken: string;
+};
+
 export async function POST(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
@@ -15,9 +19,9 @@ export async function POST(
   const { id } = await ctx.params;
   if (!id) return badRequest("id requerido.");
 
-  let body: any = null;
+  let body: DeleteBody | null = null;
   try {
-    body = await req.json();
+    body = (await req.json()) as DeleteBody;
   } catch {
     return badRequest("JSON invalido.");
   }

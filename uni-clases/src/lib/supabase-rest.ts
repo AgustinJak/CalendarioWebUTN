@@ -2,6 +2,12 @@ import crypto from "crypto";
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
+function extractMessage(x: unknown): string | undefined {
+  if (!x || typeof x !== "object") return undefined;
+  const v = (x as Record<string, unknown>).message;
+  return typeof v === "string" ? v : undefined;
+}
+
 export function supabaseUrl() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!url) throw new Error("Falta NEXT_PUBLIC_SUPABASE_URL.");
@@ -64,7 +70,7 @@ export async function supabaseRest<T>(
 
   if (!res.ok) {
     const errMsg =
-      (json && typeof json === "object" && "message" in json && (json as any).message) ||
+      extractMessage(json) ||
       text ||
       `Supabase REST error (${res.status}).`;
     throw new Error(String(errMsg));
@@ -72,4 +78,3 @@ export async function supabaseRest<T>(
 
   return { data: json as T, status: res.status };
 }
-

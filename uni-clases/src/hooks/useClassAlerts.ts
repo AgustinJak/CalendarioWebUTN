@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { addDays, dateKey, minutesBetween, startOfDay } from "@/lib/date";
 import { sessionsForRange } from "@/lib/schedule";
-import type { Session } from "@/lib/types";
 
 function lsGet(key: string) {
   try {
@@ -161,4 +160,3 @@ export async function requestNotificationPermission() {
     return Notification.permission;
   }
 }
-

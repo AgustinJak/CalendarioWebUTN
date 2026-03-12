@@ -9,9 +9,28 @@ type TokenResponse = {
   scope: string;
 };
 
+type GoogleTokenClient = {
+  requestAccessToken: (opts?: { prompt?: string }) => void;
+};
+
+type GoogleOauth2 = {
+  initTokenClient: (opts: {
+    client_id: string;
+    scope: string;
+    callback: (resp: TokenResponse) => void;
+    error_callback?: (e: unknown) => void;
+  }) => GoogleTokenClient;
+};
+
+type GoogleNamespace = {
+  accounts: {
+    oauth2: GoogleOauth2;
+  };
+};
+
 declare global {
   interface Window {
-    google?: any;
+    google?: GoogleNamespace;
   }
 }
 
@@ -20,12 +39,13 @@ export function useGoogleToken(clientId: string | undefined) {
 
   const requestToken = useCallback(async () => {
     if (!clientId) throw new Error("Falta NEXT_PUBLIC_GOOGLE_CLIENT_ID.");
-    if (!window.google?.accounts?.oauth2?.initTokenClient) {
+    const google = window.google;
+    if (!google?.accounts?.oauth2?.initTokenClient) {
       throw new Error("No se cargo Google Identity Services.");
     }
 
     const token = await new Promise<string>((resolve, reject) => {
-      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+      const tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: "https://www.googleapis.com/auth/calendar.events",
         callback: (resp: TokenResponse) => {
@@ -56,4 +76,3 @@ export function useGoogleToken(clientId: string | undefined) {
     [accessToken, requestToken],
   );
 }
-

@@ -11,6 +11,16 @@ function badRequest(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status });
 }
 
+type CreatePostBody = {
+  type: SharedPostType;
+  authorName: string;
+  content?: string;
+  title?: string;
+  courseId?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+};
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const type = (url.searchParams.get("type") ?? "").trim() as SharedPostType | "";
@@ -53,9 +63,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  let body: any = null;
+  let body: CreatePostBody | null = null;
   try {
-    body = await req.json();
+    body = (await req.json()) as CreatePostBody;
   } catch {
     return badRequest("JSON invalido.");
   }

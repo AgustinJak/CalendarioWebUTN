@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import CalendarMonth from "@/components/CalendarMonth";
 import GuestbookPanel from "@/components/GuestbookPanel";
 import GuestbookPanelShared from "@/components/GuestbookPanelShared";
@@ -72,11 +72,11 @@ function ClientAppInner({
   const [browserNotifs, setBrowserNotifs] = useState(false);
   const [permission, setPermission] = useState<
     "checking" | "unsupported" | NotificationPermission
-  >("checking");
-
-  useEffect(() => {
-    setPermission(hasNotificationSupport() ? Notification.permission : "unsupported");
-  }, []);
+  >(() => {
+    if (!hasNotificationSupport()) return "unsupported";
+    // This component only mounts after hydration; Notification is safe here.
+    return typeof Notification !== "undefined" ? Notification.permission : "unsupported";
+  });
 
   useClassAlerts({
     now,
@@ -91,15 +91,6 @@ function ClientAppInner({
 
   const notifSupported = hasNotificationSupport();
 
-  const nextSession = useMemo(() => {
-    // Look ahead a bit more than the sidebar to always find the next class.
-    const sessions = sessionsForRange(now, addDays(now, 14));
-    for (const s of sessions) {
-      if (s.end > now) return s;
-    }
-    return null;
-  }, [now]);
-
   function scrollToActions() {
     // Wait a tick so the selected session renders the actions block.
     window.setTimeout(() => {
@@ -108,6 +99,11 @@ function ClientAppInner({
         block: "start",
       });
     }, 0);
+  }
+
+  function shouldAutoScrollToActions() {
+    // Desktop: keep context (no jump). Mobile: bring actions into view.
+    return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
   }
 
   return (
@@ -160,6 +156,7 @@ function ClientAppInner({
                   aria-label="Aguspium en GitHub"
                 >
                   <div className="aspect-square w-full overflow-hidden rounded-2xl border border-white/10 bg-white/4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={avatarSrc}
                       alt="Agustin J."
@@ -404,7 +401,7 @@ function ClientAppInner({
               initialMonth={now}
               onPickSession={(s) => {
                 setSelected(s);
-                scrollToActions();
+                if (shouldAutoScrollToActions()) scrollToActions();
               }}
               onToast={push}
               googleClientId={googleClientId}

@@ -9,10 +9,21 @@ function badRequest(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status });
 }
 
+type ReportBody = {
+  postId: string;
+  reason?: string;
+};
+
+type PostReportState = {
+  report_count: number;
+  hidden: boolean;
+  hidden_at: string | null;
+};
+
 export async function POST(req: Request) {
-  let body: any = null;
+  let body: ReportBody | null = null;
   try {
-    body = await req.json();
+    body = (await req.json()) as ReportBody;
   } catch {
     return badRequest("JSON invalido.");
   }
@@ -25,7 +36,7 @@ export async function POST(req: Request) {
     const reporter_hash = reporterHashFromRequest(req);
 
     // Insert report; ignore duplicates for the same reporter_hash.
-    const { data: inserted } = await supabaseRest<any[]>("/rest/v1/reports", {
+    const { data: inserted } = await supabaseRest<unknown[]>("/rest/v1/reports", {
       method: "POST",
       query: { on_conflict: "post_id,reporter_hash" },
       body: {
@@ -39,9 +50,7 @@ export async function POST(req: Request) {
     const didInsert = Array.isArray(inserted) && inserted.length > 0;
 
     // Always return current state.
-    const { data: rows } = await supabaseRest<
-      { report_count: number; hidden: boolean; hidden_at: string | null }[]
-    >("/rest/v1/posts", {
+    const { data: rows } = await supabaseRest<PostReportState[]>("/rest/v1/posts", {
       method: "GET",
       query: {
         select: "report_count,hidden,hidden_at",
@@ -65,7 +74,11 @@ export async function POST(req: Request) {
     const nextCount = current.report_count + 1;
     const shouldHide = nextCount >= HIDE_AFTER;
 
-    const patch: any = {
+    const patch: {
+      report_count: number;
+      hidden?: boolean;
+      hidden_at?: string;
+    } = {
       report_count: nextCount,
     };
     if (shouldHide && !current.hidden) {
@@ -73,7 +86,7 @@ export async function POST(req: Request) {
       patch.hidden_at = new Date().toISOString();
     }
 
-    const { data: updated } = await supabaseRest<any[]>("/rest/v1/posts", {
+    const { data: updated } = await supabaseRest<PostReportState[]>("/rest/v1/posts", {
       method: "PATCH",
       query: { id: `eq.${postId}` },
       body: patch,

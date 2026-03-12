@@ -39,6 +39,7 @@ export default function GuestbookPanel({
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessages(loadMessages());
   }, []);
 

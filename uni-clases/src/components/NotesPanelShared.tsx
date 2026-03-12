@@ -16,11 +16,17 @@ function timeLabel(iso: string) {
   }).format(new Date(iso));
 }
 
+function extractApiError(x: unknown): string | undefined {
+  if (!x || typeof x !== "object") return undefined;
+  const v = (x as Record<string, unknown>).error;
+  return typeof v === "string" ? v : undefined;
+}
+
 async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { ...init, cache: "no-store" });
-  const data = await res.json().catch(() => ({}));
+  const data: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const msg = (data && (data as any).error) || "Error desconocido.";
+    const msg = extractApiError(data) || "Error desconocido.";
     throw new Error(String(msg));
   }
   return data as T;
