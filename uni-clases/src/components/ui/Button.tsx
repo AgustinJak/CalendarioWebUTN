@@ -5,7 +5,7 @@ import { cx } from "./cx";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "solid" | "ghost" | "soft";
-  tone?: "accent" | "neutral" | "danger";
+  tone?: "accent" | "neutral" | "danger" | "ok" | "warn";
   size?: "sm" | "md";
 };
 
@@ -27,6 +27,8 @@ export default function Button({
   const tones: Record<NonNullable<Props["tone"]>, string> = {
     neutral: "text-white",
     accent: "text-[#06121a]",
+    ok: "text-[#06121a]",
+    warn: "text-[#06121a]",
     danger: "text-white",
   };
 
@@ -34,17 +36,31 @@ export default function Button({
     solid:
       tone === "accent"
         ? "bg-[color:var(--accent)] hover:brightness-[0.98]"
+        : tone === "ok"
+          ? "bg-[color:var(--ok)] hover:brightness-[0.98]"
+          : tone === "warn"
+            ? "bg-[color:var(--accent2)] hover:brightness-[0.98]"
         : tone === "danger"
           ? "bg-[color:var(--danger)] hover:brightness-[0.98]"
           : "bg-white/14 hover:bg-white/18 border border-white/10",
     soft:
       tone === "accent"
         ? "bg-[color:var(--accent)]/18 text-white border border-white/12 hover:bg-[color:var(--accent)]/22"
+        : tone === "ok"
+          ? "bg-[color:var(--ok)]/16 text-white border border-emerald-200/15 hover:bg-[color:var(--ok)]/22"
+          : tone === "warn"
+            ? "bg-[color:var(--accent2)]/14 text-white border border-amber-200/15 hover:bg-[color:var(--accent2)]/20"
         : tone === "danger"
           ? "bg-[color:var(--danger)]/16 text-white border border-white/10 hover:bg-[color:var(--danger)]/22"
           : "bg-white/8 text-white border border-white/10 hover:bg-white/11",
     ghost:
-      "bg-transparent text-white/90 hover:bg-white/8 border border-transparent hover:border-white/10",
+      tone === "danger"
+        ? "bg-transparent text-rose-50/90 hover:bg-rose-200/10 border border-transparent hover:border-rose-200/20"
+        : tone === "ok"
+          ? "bg-transparent text-emerald-50/90 hover:bg-emerald-200/10 border border-transparent hover:border-emerald-200/20"
+          : tone === "warn"
+            ? "bg-transparent text-amber-50/90 hover:bg-amber-200/10 border border-transparent hover:border-amber-200/20"
+            : "bg-transparent text-white/90 hover:bg-white/8 border border-transparent hover:border-white/10",
   };
 
   return (
@@ -54,4 +70,3 @@ export default function Button({
     />
   );
 }
-

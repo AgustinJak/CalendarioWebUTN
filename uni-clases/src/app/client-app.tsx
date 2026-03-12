@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import CalendarMonth from "@/components/CalendarMonth";
 import GuestbookPanel from "@/components/GuestbookPanel";
+import GuestbookPanelShared from "@/components/GuestbookPanelShared";
 import NotesPanel from "@/components/NotesPanel";
+import NotesPanelShared from "@/components/NotesPanelShared";
 import ToastStack from "@/components/ToastStack";
 import TodayPanel from "@/components/TodayPanel";
 import Button from "@/components/ui/Button";
@@ -39,8 +41,10 @@ function etaLabel(totalMinutes: number) {
 
 export default function ClientApp({
   googleClientId,
+  sharedEnabled,
 }: {
   googleClientId: string | null;
+  sharedEnabled: boolean;
 }) {
   const hydrated = useHydrated();
 
@@ -50,10 +54,16 @@ export default function ClientApp({
     return <div className="min-h-screen" />;
   }
 
-  return <ClientAppInner googleClientId={googleClientId} />;
+  return <ClientAppInner googleClientId={googleClientId} sharedEnabled={sharedEnabled} />;
 }
 
-function ClientAppInner({ googleClientId }: { googleClientId: string | null }) {
+function ClientAppInner({
+  googleClientId,
+  sharedEnabled,
+}: {
+  googleClientId: string | null;
+  sharedEnabled: boolean;
+}) {
   const now = useNow(25_000);
   const { toasts, push, dismiss } = useToasts();
   const [selected, setSelected] = useState<Session | null>(null);
@@ -404,10 +414,14 @@ function ClientAppInner({ googleClientId }: { googleClientId: string | null }) {
 
         <section className="mt-8 space-y-6">
           <div className="u-fade-up" style={{ animationDelay: "200ms" }}>
-            <NotesPanel onToast={push} />
+            {sharedEnabled ? <NotesPanelShared onToast={push} /> : <NotesPanel onToast={push} />}
           </div>
           <div className="u-fade-up" style={{ animationDelay: "240ms" }}>
-            <GuestbookPanel onToast={push} />
+            {sharedEnabled ? (
+              <GuestbookPanelShared onToast={push} />
+            ) : (
+              <GuestbookPanel onToast={push} />
+            )}
           </div>
         </section>
 
