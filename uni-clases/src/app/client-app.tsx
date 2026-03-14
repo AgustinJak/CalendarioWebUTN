@@ -108,7 +108,7 @@ function ClientAppInner({
 
   return (
     <div className="min-h-screen">
-      <main className="mx-auto w-full max-w-6xl px-4 py-10">
+      <main className="mx-auto w-full max-w-6xl px-4 pt-10 pb-28 sm:pb-10">
         <section className="u-fade-up">
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="rounded-3xl border border-white/10 bg-white/6 p-7 shadow-[0_18px_70px_-40px_var(--shadow)] backdrop-blur u-noise">

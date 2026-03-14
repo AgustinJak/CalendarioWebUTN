@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { supabaseRest } from "@/lib/supabase-rest";
+import { reporterHashFromRequest, supabaseRest } from "@/lib/supabase-rest";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,20 @@ export async function POST(
   if (!token) return badRequest("deleteToken requerido.");
 
   try {
+    try {
+      const h = reporterHashFromRequest(req);
+      const rl = checkRateLimit(`delete:${h}`, 60_000, 10);
+      if (!rl.ok) {
+        const retrySec = Math.max(1, Math.ceil(rl.retryAfterMs / 1000));
+        return NextResponse.json(
+          { error: `Estas borrando muy rapido. Espera ${retrySec}s y reintenta.` },
+          { status: 429, headers: { "retry-after": String(retrySec) } },
+        );
+      }
+    } catch {
+      // Skip rate limiting if fingerprint isn't available.
+    }
+
     const { data: rows } = await supabaseRest<{ delete_token_hash: string | null }[]>(
       "/rest/v1/posts",
       {

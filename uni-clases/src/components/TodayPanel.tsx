@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { addDays, formatDateLong, formatTime, minutesBetween, startOfDay } from "@/lib/date";
 import { sessionsForRange } from "@/lib/schedule";
 import type { Session } from "@/lib/types";
 import Button from "./ui/Button";
 import { Card, CardBody, CardHeader } from "./ui/Card";
+
+const LS_FLOAT_ACTIONS = "uni_clases_float_actions_v1";
 
 function formatDateNumericShort(date: Date) {
   return new Intl.DateTimeFormat("es-AR", {
@@ -70,6 +72,25 @@ export default function TodayPanel({
   const focusStatus = focus ? getStatus(now, focus) : null;
 
   const joinUrl = focus?.liveUrl ?? "";
+  const [floatActions, setFloatActions] = useState(() => {
+    try {
+      return localStorage.getItem(LS_FLOAT_ACTIONS) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  function toggleFloatActions() {
+    setFloatActions((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(LS_FLOAT_ACTIONS, next ? "1" : "0");
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
 
   const todaySubtitle =
     todaySessions.length === 0
@@ -141,6 +162,17 @@ export default function TodayPanel({
                 </div>
 
                 <div className="w-full sm:w-auto">
+                  <div className="mb-2 sm:hidden">
+                    <Button
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                      className="w-full"
+                      onClick={toggleFloatActions}
+                    >
+                      {floatActions ? "Desfijar acciones" : "Fijar acciones"}
+                    </Button>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       size="sm"
@@ -260,6 +292,60 @@ export default function TodayPanel({
             </div>
         </CardBody>
       </Card>
+
+      {focus && floatActions ? (
+        <div className="fixed bottom-4 left-4 right-4 z-40 sm:hidden">
+          <div className="u-noise rounded-2xl border border-white/12 bg-[#050f18]/96 p-3 shadow-[0_18px_60px_-34px_var(--shadow)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium text-white">{focus.title}</div>
+                <div className="mt-1 text-xs text-white/65 tabular-nums">
+                  {formatTime(focus.start)} - {formatTime(focus.end)}
+                  {focusStatus ? ` · ${focusStatus.label}` : ""}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="shrink-0 rounded-lg border border-white/10 bg-white/6 px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/35"
+                onClick={toggleFloatActions}
+                aria-label="Cerrar acciones flotantes"
+                title="Cerrar"
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <Button
+                size="sm"
+                className="w-full"
+                type="button"
+                tone="accent"
+                variant="solid"
+                onClick={() => {
+                  if (!joinUrl) return;
+                  window.open(joinUrl, "_blank", "noopener,noreferrer");
+                }}
+                disabled={!joinUrl}
+              >
+                Unirse
+              </Button>
+              <Button
+                size="sm"
+                className="w-full"
+                type="button"
+                variant="soft"
+                onClick={async () => {
+                  if (!joinUrl) return;
+                  await navigator.clipboard.writeText(joinUrl);
+                }}
+                disabled={!joinUrl}
+              >
+                Copiar
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

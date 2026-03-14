@@ -2,17 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { SharedPost } from "@/lib/shared-types";
+import { loadSavedAuthorName, saveAuthorName } from "@/lib/prefs";
 import Button from "./ui/Button";
 import { Card, CardBody, CardHeader } from "./ui/Card";
-import { Input, Label, Textarea } from "./ui/Field";
+import { Input, Label, Select, Textarea } from "./ui/Field";
 
 function timeLabel(iso: string) {
-  return new Intl.DateTimeFormat("es-AR", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm} ${hh}:${mi}`;
 }
 
 function extractApiError(x: unknown): string | undefined {
@@ -32,6 +33,14 @@ async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 const LS_DELETE_TOKENS = "uni_clases_delete_tokens_v1";
+const MAX_AUTHOR = 60;
+const MAX_MSG = 700;
+
+type SortMode = "new" | "old" | "reports";
+
+function includesLoose(haystack: string, needle: string) {
+  return haystack.toLowerCase().includes(needle.toLowerCase());
+}
 
 function loadDeleteTokens(): Record<string, string> {
   if (typeof localStorage === "undefined") return {};
@@ -59,9 +68,13 @@ export default function GuestbookPanelShared({
   const [reportedOpen, setReportedOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, SharedPost>>({});
   const [deleteTokens, setDeleteTokens] = useState<Record<string, string>>({});
+  const [publishing, setPublishing] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const [authorName, setAuthorName] = useState("");
   const [message, setMessage] = useState("");
+  const [q, setQ] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("new");
 
   const countLabel = useMemo(() => `${messages.length} mensaje(s)`, [messages.length]);
   const reportedLabel = useMemo(
@@ -88,6 +101,8 @@ export default function GuestbookPanelShared({
 
   useEffect(() => {
     setDeleteTokens(loadDeleteTokens());
+    const saved = loadSavedAuthorName();
+    if (saved) setAuthorName((v) => v || saved);
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -99,11 +114,21 @@ export default function GuestbookPanelShared({
       onToast({ title: "Completa tu nombre y apellido", kind: "warn" });
       return;
     }
+    if (name.length > MAX_AUTHOR) {
+      onToast({ title: `Nombre demasiado largo (max ${MAX_AUTHOR}).`, kind: "warn" });
+      return;
+    }
     if (!msg) {
       onToast({ title: "Escribi un mensaje", kind: "warn" });
       return;
     }
+    if (msg.length > MAX_MSG) {
+      onToast({ title: `Mensaje demasiado largo (max ${MAX_MSG}).`, kind: "warn" });
+      return;
+    }
     try {
+      setPublishing(true);
+      saveAuthorName(name);
       const res = await apiJson<{ item: SharedPost | null; deleteToken?: string }>(
         "/api/posts",
         {
@@ -124,6 +149,8 @@ export default function GuestbookPanelShared({
     } catch (e) {
       const msg2 = e instanceof Error ? e.message : "Error desconocido.";
       onToast({ title: "No se pudo publicar", description: msg2, kind: "danger" });
+    } finally {
+      setPublishing(false);
     }
   }
 
@@ -141,6 +168,7 @@ export default function GuestbookPanelShared({
     if (!ok) return;
 
     try {
+      setBusyId(id);
       await apiJson<{ ok: boolean }>("/api/posts/" + id + "/delete", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -157,6 +185,8 @@ export default function GuestbookPanelShared({
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido.";
       onToast({ title: "No se pudo eliminar", description: msg, kind: "danger" });
+    } finally {
+      setBusyId((cur) => (cur === id ? null : cur));
     }
   }
 
@@ -164,6 +194,7 @@ export default function GuestbookPanelShared({
     const ok = window.confirm("Reportar este contenido? Si llega a 5 reportes se oculta.");
     if (!ok) return;
     try {
+      setBusyId(postId);
       const r = await apiJson<{ ok: boolean; inserted: boolean; reportCount: number; hidden: boolean }>(
         "/api/report",
         {
@@ -183,14 +214,40 @@ export default function GuestbookPanelShared({
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido.";
       onToast({ title: "No se pudo reportar", description: msg, kind: "danger" });
+    } finally {
+      setBusyId((cur) => (cur === postId ? null : cur));
     }
   }
 
   async function loadFull(id: string) {
     if (expanded[id]) return;
-    const res = await apiJson<{ item: SharedPost }>("/api/posts/" + id);
-    setExpanded((m) => ({ ...m, [id]: res.item }));
+    try {
+      setBusyId(id);
+      const res = await apiJson<{ item: SharedPost }>("/api/posts/" + id);
+      setExpanded((m) => ({ ...m, [id]: res.item }));
+    } finally {
+      setBusyId((cur) => (cur === id ? null : cur));
+    }
   }
+
+  const visibleMessages = useMemo(() => {
+    const needle = q.trim();
+    let arr = messages.slice();
+
+    if (needle) {
+      arr = arr.filter((x) => includesLoose(x.author_name ?? "", needle) || includesLoose(x.content ?? "", needle));
+    }
+
+    if (sortMode === "old") {
+      arr.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    } else if (sortMode === "reports") {
+      arr.sort((a, b) => (b.report_count ?? 0) - (a.report_count ?? 0));
+    } else {
+      arr.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    }
+
+    return arr;
+  }, [messages, q, sortMode]);
 
   return (
     <Card className="u-noise" id="muro">
@@ -214,6 +271,7 @@ export default function GuestbookPanelShared({
                     value={authorName}
                     onChange={(e) => setAuthorName(e.target.value)}
                     placeholder="Ej: Valentina Ruiz"
+                    maxLength={MAX_AUTHOR}
                   />
                 </div>
               </div>
@@ -224,15 +282,19 @@ export default function GuestbookPanelShared({
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Pregunta, aviso, recurso, link..."
+                    maxLength={MAX_MSG}
                   />
+                </div>
+                <div className="mt-1 text-[11px] text-white/45">
+                  {message.length}/{MAX_MSG}
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 pt-1">
-                <Button type="button" tone="accent" onClick={() => void publish()}>
-                  Publicar
+                <Button type="button" tone="accent" onClick={() => void publish()} disabled={publishing}>
+                  {publishing ? "Publicando..." : "Publicar"}
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => void refresh()}>
-                  Recargar
+                <Button type="button" variant="ghost" onClick={() => void refresh()} disabled={loading || publishing}>
+                  {loading ? "Cargando..." : "Recargar"}
                 </Button>
               </div>
               <div className="text-xs text-white/55">
@@ -247,13 +309,32 @@ export default function GuestbookPanelShared({
               Solo se muestran los no reportados (los reportados quedan abajo).
             </div>
 
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Buscar por nombre o contenido..."
+                className="h-10 text-sm"
+              />
+              <Select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as SortMode)}
+                className="h-10 text-sm sm:w-56"
+                aria-label="Ordenar"
+              >
+                <option value="new">Recientes</option>
+                <option value="old">Mas antiguos</option>
+                <option value="reports">Mas reportados</option>
+              </Select>
+            </div>
+
             <div className="mt-3 space-y-2">
               {loading ? (
                 <div className="rounded-xl border border-white/10 bg-white/6 p-4 text-sm text-white/65">
                   Cargando...
                 </div>
-              ) : messages.length ? (
-                messages.map((m) => (
+              ) : visibleMessages.length ? (
+                visibleMessages.map((m) => (
                   <div
                     key={m.id}
                     className="relative rounded-2xl border border-white/10 bg-white/6 p-4"
@@ -261,7 +342,7 @@ export default function GuestbookPanelShared({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate font-medium text-white">{m.author_name}</div>
-                        <div className="mt-2 whitespace-pre-wrap text-sm text-white/75">
+                        <div className="mt-2 whitespace-pre-wrap break-words text-sm text-white/75">
                           {m.content}
                         </div>
                       </div>
@@ -269,17 +350,23 @@ export default function GuestbookPanelShared({
                         {timeLabel(m.created_at)}
                       </div>
                     </div>
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      <div className="text-xs text-white/55">Reportes: {m.report_count}</div>
-                      <div className="flex items-center gap-2">
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-xs text-white/55">
+                        <span className="inline-flex rounded-full border border-white/10 bg-white/6 px-2 py-0.5 tabular-nums">
+                          Rep {m.report_count}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
                         {deleteTokens[m.id] ? (
                           <Button
                             size="sm"
                             variant="soft"
                             tone="danger"
                             onClick={() => void removePost(m.id)}
+                            className="w-full sm:w-auto"
+                            disabled={busyId === m.id}
                           >
-                            Eliminar
+                            {busyId === m.id ? "Eliminando..." : "Eliminar"}
                           </Button>
                         ) : null}
                         <Button
@@ -287,8 +374,10 @@ export default function GuestbookPanelShared({
                           variant="soft"
                           tone="danger"
                           onClick={() => void report(m.id)}
+                          className="w-full sm:w-auto"
+                          disabled={busyId === m.id}
                         >
-                          Reportar
+                          {busyId === m.id ? "Enviando..." : "Reportar"}
                         </Button>
                       </div>
                     </div>
@@ -316,12 +405,13 @@ export default function GuestbookPanelShared({
                   {reported.length ? (
                     reported.map((p) => {
                       const full = expanded[p.id];
+                      const busy = busyId === p.id;
                       return (
                         <div
                           key={p.id}
                           className="rounded-2xl border border-white/10 bg-white/5 p-4"
                         >
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="min-w-0">
                               <div className="truncate font-medium text-white">
                                 {p.author_name}
@@ -330,15 +420,17 @@ export default function GuestbookPanelShared({
                                 {timeLabel(p.created_at)} · Reportes: {p.report_count}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
                               {deleteTokens[p.id] ? (
                                 <Button
                                   size="sm"
                                   variant="soft"
                                   tone="danger"
                                   onClick={() => void removePost(p.id)}
+                                  className="w-full sm:w-auto"
+                                  disabled={busy}
                                 >
-                                  Eliminar
+                                  {busy ? "Eliminando..." : "Eliminar"}
                                 </Button>
                               ) : null}
                               <Button
@@ -346,14 +438,16 @@ export default function GuestbookPanelShared({
                                 variant="soft"
                                 tone="warn"
                                 onClick={() => void loadFull(p.id)}
+                                className="w-full sm:w-auto"
+                                disabled={busy}
                               >
-                                Ver contenido
+                                {busy ? "Cargando..." : "Ver contenido"}
                               </Button>
                             </div>
                           </div>
 
                           {full?.content ? (
-                            <div className="mt-3 whitespace-pre-wrap text-sm text-white/75">
+                            <div className="mt-3 whitespace-pre-wrap break-words text-sm text-white/75">
                               {full.content}
                             </div>
                           ) : null}

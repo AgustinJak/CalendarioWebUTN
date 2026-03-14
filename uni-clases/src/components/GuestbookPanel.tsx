@@ -3,11 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import type { GuestMessage } from "@/lib/types";
 import { randomId, safeJsonParse } from "@/lib/storage";
+import { loadSavedAuthorName, saveAuthorName } from "@/lib/prefs";
 import Button from "./ui/Button";
 import { Card, CardBody, CardHeader } from "./ui/Card";
-import { Input, Label, Textarea } from "./ui/Field";
+import { Input, Label, Select, Textarea } from "./ui/Field";
 
 const LS_KEY = "uni_clases_guestbook_v1";
+const MAX_AUTHOR = 60;
+const MAX_MSG = 700;
+
+type SortMode = "new" | "old";
+
+function includesLoose(haystack: string, needle: string) {
+  return haystack.toLowerCase().includes(needle.toLowerCase());
+}
 
 function loadMessages() {
   if (typeof localStorage === "undefined") return [];
@@ -21,12 +30,12 @@ function saveMessages(messages: GuestMessage[]) {
 }
 
 function timeLabel(ts: number) {
-  return new Intl.DateTimeFormat("es-AR", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(ts));
+  const d = new Date(ts);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm} ${hh}:${mi}`;
 }
 
 export default function GuestbookPanel({
@@ -37,13 +46,30 @@ export default function GuestbookPanel({
   const [messages, setMessages] = useState<GuestMessage[]>([]);
   const [authorName, setAuthorName] = useState("");
   const [message, setMessage] = useState("");
+  const [q, setQ] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("new");
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessages(loadMessages());
+    const saved = loadSavedAuthorName();
+    if (saved) setAuthorName((v) => v || saved);
   }, []);
 
   const countLabel = useMemo(() => `${messages.length} mensaje(s)`, [messages.length]);
+
+  const visibleMessages = useMemo(() => {
+    const needle = q.trim();
+    let arr = messages.slice();
+    if (needle) {
+      arr = arr.filter(
+        (m) => includesLoose(m.authorName ?? "", needle) || includesLoose(m.message ?? "", needle),
+      );
+    }
+    if (sortMode === "old") arr.sort((a, b) => a.createdAt - b.createdAt);
+    else arr.sort((a, b) => b.createdAt - a.createdAt);
+    return arr;
+  }, [messages, q, sortMode]);
 
   function publish() {
     const name = authorName.trim();
@@ -52,10 +78,19 @@ export default function GuestbookPanel({
       onToast({ title: "Completa tu nombre y apellido", kind: "warn" });
       return;
     }
+    if (name.length > MAX_AUTHOR) {
+      onToast({ title: `Nombre demasiado largo (max ${MAX_AUTHOR}).`, kind: "warn" });
+      return;
+    }
     if (!msg) {
       onToast({ title: "Escribi un mensaje", kind: "warn" });
       return;
     }
+    if (msg.length > MAX_MSG) {
+      onToast({ title: `Mensaje demasiado largo (max ${MAX_MSG}).`, kind: "warn" });
+      return;
+    }
+    saveAuthorName(name);
     const next: GuestMessage = {
       id: randomId("msg"),
       createdAt: Date.now(),
@@ -98,6 +133,7 @@ export default function GuestbookPanel({
                     value={authorName}
                     onChange={(e) => setAuthorName(e.target.value)}
                     placeholder="Ej: Valentina Ruiz"
+                    maxLength={MAX_AUTHOR}
                   />
                 </div>
               </div>
@@ -108,7 +144,11 @@ export default function GuestbookPanel({
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Pregunta, aviso, recurso, link..."
+                    maxLength={MAX_MSG}
                   />
+                </div>
+                <div className="mt-1 text-[11px] text-white/45">
+                  {message.length}/{MAX_MSG}
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -130,8 +170,26 @@ export default function GuestbookPanel({
             </div>
 
             <div className="mt-3 space-y-2">
-              {messages.length ? (
-                messages.map((m) => (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Buscar por nombre o contenido..."
+                  className="h-10 text-sm"
+                />
+                <Select
+                  value={sortMode}
+                  onChange={(e) => setSortMode(e.target.value as SortMode)}
+                  className="h-10 text-sm sm:w-56"
+                  aria-label="Ordenar"
+                >
+                  <option value="new">Recientes</option>
+                  <option value="old">Mas antiguos</option>
+                </Select>
+              </div>
+
+              {visibleMessages.length ? (
+                visibleMessages.map((m) => (
                   <div
                     key={m.id}
                     className="relative rounded-2xl border border-white/10 bg-white/6 p-4"
@@ -141,7 +199,7 @@ export default function GuestbookPanel({
                         <div className="truncate font-medium text-white">
                           {m.authorName}
                         </div>
-                        <div className="mt-2 whitespace-pre-wrap text-sm text-white/75">
+                        <div className="mt-2 whitespace-pre-wrap break-words text-sm text-white/75">
                           {m.message}
                         </div>
                       </div>
