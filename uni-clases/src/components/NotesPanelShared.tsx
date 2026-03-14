@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { COURSES } from "@/lib/schedule";
 import type { SharedPost } from "@/lib/shared-types";
+import { loadSavedAuthorName, saveAuthorName } from "@/lib/prefs";
 import Button from "./ui/Button";
 import { Card, CardBody, CardHeader } from "./ui/Card";
 import { Input, Label, Select, Textarea } from "./ui/Field";
@@ -34,6 +35,25 @@ async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 const LS_DELETE_TOKENS = "uni_clases_delete_tokens_v1";
+const MAX_AUTHOR = 60;
+const MAX_TITLE = 90;
+const MAX_DESC = 600;
+const MAX_LINK = 350;
+
+type SortMode = "new" | "old" | "reports";
+
+function includesLoose(haystack: string, needle: string) {
+  return haystack.toLowerCase().includes(needle.toLowerCase());
+}
+
+function isValidHttpUrl(url: string) {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 function loadDeleteTokens(): Record<string, string> {
   if (typeof localStorage === "undefined") return {};
@@ -61,12 +81,17 @@ export default function NotesPanelShared({
   const [reportedOpen, setReportedOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, SharedPost>>({});
   const [deleteTokens, setDeleteTokens] = useState<Record<string, string>>({});
+  const [publishing, setPublishing] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const [authorName, setAuthorName] = useState("");
   const [courseId, setCourseId] = useState(COURSES[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
   const [link, setLink] = useState("");
+  const [q, setQ] = useState("");
+  const [filterCourse, setFilterCourse] = useState<string>("");
+  const [sortMode, setSortMode] = useState<SortMode>("new");
 
   const courseLabel = useMemo(() => {
     const c = COURSES.find((x) => x.id === courseId);
@@ -98,6 +123,8 @@ export default function NotesPanelShared({
 
   useEffect(() => {
     setDeleteTokens(loadDeleteTokens());
+    const saved = loadSavedAuthorName();
+    if (saved) setAuthorName((v) => v || saved);
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -108,15 +135,37 @@ export default function NotesPanelShared({
       onToast({ title: "Completa tu nombre y apellido", kind: "warn" });
       return;
     }
+    if (name.length > MAX_AUTHOR) {
+      onToast({ title: `Nombre demasiado largo (max ${MAX_AUTHOR}).`, kind: "warn" });
+      return;
+    }
     const t = title.trim() || `${courseLabel} · Apunte`;
+    if (t.length > MAX_TITLE) {
+      onToast({ title: `Titulo demasiado largo (max ${MAX_TITLE}).`, kind: "warn" });
+      return;
+    }
     const url = link.trim();
     const desc = details.trim();
+    if (desc.length > MAX_DESC) {
+      onToast({ title: `Descripcion demasiado larga (max ${MAX_DESC}).`, kind: "warn" });
+      return;
+    }
+    if (url && url.length > MAX_LINK) {
+      onToast({ title: `Link demasiado largo (max ${MAX_LINK}).`, kind: "warn" });
+      return;
+    }
     if (!url && !desc) {
       onToast({ title: "Agrega un link o una descripcion", kind: "warn" });
       return;
     }
+    if (url && !isValidHttpUrl(url)) {
+      onToast({ title: "Link invalido", description: "Usa http(s):// ...", kind: "warn" });
+      return;
+    }
 
     try {
+      setPublishing(true);
+      saveAuthorName(name);
       const res = await apiJson<{ item: SharedPost | null; deleteToken?: string }>(
         "/api/posts",
         {
@@ -148,6 +197,8 @@ export default function NotesPanelShared({
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido.";
       onToast({ title: "No se pudo publicar", description: msg, kind: "danger" });
+    } finally {
+      setPublishing(false);
     }
   }
 
@@ -155,6 +206,7 @@ export default function NotesPanelShared({
     const ok = window.confirm("Reportar este apunte? Si llega a 5 reportes se oculta.");
     if (!ok) return;
     try {
+      setBusyId(postId);
       const r = await apiJson<{ ok: boolean; inserted: boolean; reportCount: number; hidden: boolean }>(
         "/api/report",
         {
@@ -174,13 +226,20 @@ export default function NotesPanelShared({
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido.";
       onToast({ title: "No se pudo reportar", description: msg, kind: "danger" });
+    } finally {
+      setBusyId((cur) => (cur === postId ? null : cur));
     }
   }
 
   async function loadFull(id: string) {
     if (expanded[id]) return;
-    const res = await apiJson<{ item: SharedPost }>("/api/posts/" + id);
-    setExpanded((m) => ({ ...m, [id]: res.item }));
+    try {
+      setBusyId(id);
+      const res = await apiJson<{ item: SharedPost }>("/api/posts/" + id);
+      setExpanded((m) => ({ ...m, [id]: res.item }));
+    } finally {
+      setBusyId((cur) => (cur === id ? null : cur));
+    }
   }
 
   async function removePost(id: string) {
@@ -197,6 +256,7 @@ export default function NotesPanelShared({
     if (!ok) return;
 
     try {
+      setBusyId(id);
       await apiJson<{ ok: boolean }>("/api/posts/" + id + "/delete", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -213,8 +273,39 @@ export default function NotesPanelShared({
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido.";
       onToast({ title: "No se pudo eliminar", description: msg, kind: "danger" });
+    } finally {
+      setBusyId((cur) => (cur === id ? null : cur));
     }
   }
+
+  const visibleItems = useMemo(() => {
+    const needle = q.trim();
+    let arr = items.slice();
+
+    if (filterCourse) arr = arr.filter((x) => (x.course_id ?? "") === filterCourse);
+
+    if (needle) {
+      arr = arr.filter((x) => {
+        const course = COURSES.find((c) => c.id === x.course_id);
+        return (
+          includesLoose(x.title ?? "", needle) ||
+          includesLoose(x.author_name ?? "", needle) ||
+          includesLoose(x.content ?? "", needle) ||
+          includesLoose(course?.name ?? "", needle)
+        );
+      });
+    }
+
+    if (sortMode === "old") {
+      arr.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    } else if (sortMode === "reports") {
+      arr.sort((a, b) => (b.report_count ?? 0) - (a.report_count ?? 0));
+    } else {
+      arr.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    }
+
+    return arr;
+  }, [items, q, filterCourse, sortMode]);
 
   return (
     <Card className="u-noise" id="apuntes">
@@ -238,6 +329,7 @@ export default function NotesPanelShared({
                     value={authorName}
                     onChange={(e) => setAuthorName(e.target.value)}
                     placeholder="Ej: Juan Perez"
+                    maxLength={MAX_AUTHOR}
                   />
                 </div>
               </div>
@@ -260,7 +352,11 @@ export default function NotesPanelShared({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder={`${courseLabel} · Resumen / Parciales / Guia`}
+                    maxLength={MAX_TITLE}
                   />
+                </div>
+                <div className="mt-1 text-[11px] text-white/45">
+                  {title.length}/{MAX_TITLE}
                 </div>
               </div>
               <div>
@@ -270,7 +366,11 @@ export default function NotesPanelShared({
                     value={link}
                     onChange={(e) => setLink(e.target.value)}
                     placeholder="https://drive.google.com/... o https://youtube.com/..."
+                    maxLength={MAX_LINK}
                   />
+                </div>
+                <div className="mt-1 text-[11px] text-white/45">
+                  {link.length}/{MAX_LINK}
                 </div>
               </div>
               <div>
@@ -280,16 +380,20 @@ export default function NotesPanelShared({
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
                     placeholder="Que es, de que tema, para que parcial..."
+                    maxLength={MAX_DESC}
                   />
+                </div>
+                <div className="mt-1 text-[11px] text-white/45">
+                  {details.length}/{MAX_DESC}
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 pt-1">
-                <Button type="button" tone="ok" onClick={() => void publish()}>
-                  Publicar apunte
+                <Button type="button" tone="ok" onClick={() => void publish()} disabled={publishing}>
+                  {publishing ? "Publicando..." : "Publicar apunte"}
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => void refresh()}>
-                  Recargar
+                <Button type="button" variant="ghost" onClick={() => void refresh()} disabled={loading || publishing}>
+                  {loading ? "Cargando..." : "Recargar"}
                 </Button>
               </div>
               <div className="text-xs text-white/55">
@@ -304,14 +408,49 @@ export default function NotesPanelShared({
               Solo se muestran los no reportados (los reportados quedan abajo).
             </div>
 
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Buscar por titulo, autor, materia..."
+                className="h-10 text-sm"
+              />
+              <div className="flex items-center gap-2">
+                <Select
+                  value={filterCourse}
+                  onChange={(e) => setFilterCourse(e.target.value)}
+                  className="h-10 text-sm"
+                  aria-label="Filtrar por materia"
+                >
+                  <option value="">Todas</option>
+                  {COURSES.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  value={sortMode}
+                  onChange={(e) => setSortMode(e.target.value as SortMode)}
+                  className="h-10 text-sm"
+                  aria-label="Ordenar"
+                >
+                  <option value="new">Recientes</option>
+                  <option value="old">Mas antiguos</option>
+                  <option value="reports">Mas reportados</option>
+                </Select>
+              </div>
+            </div>
+
             <div className="mt-3 space-y-2">
               {loading ? (
                 <div className="rounded-xl border border-white/10 bg-white/6 p-4 text-sm text-white/65">
                   Cargando...
                 </div>
-              ) : items.length ? (
-                items.map((n) => {
+              ) : visibleItems.length ? (
+                visibleItems.map((n) => {
                   const course = COURSES.find((c) => c.id === n.course_id);
+                  const busy = busyId === n.id;
                   return (
                     <div
                       key={n.id}
@@ -344,6 +483,7 @@ export default function NotesPanelShared({
                               onClick={() => {
                                 window.open(n.attachment_url!, "_blank", "noopener,noreferrer");
                               }}
+                              disabled={busy}
                             >
                               Abrir link
                             </Button>
@@ -355,8 +495,9 @@ export default function NotesPanelShared({
                               tone="danger"
                               className="w-full sm:w-auto"
                               onClick={() => void removePost(n.id)}
+                              disabled={busy}
                             >
-                              Eliminar
+                              {busy ? "Eliminando..." : "Eliminar"}
                             </Button>
                           ) : null}
                           <Button
@@ -365,8 +506,9 @@ export default function NotesPanelShared({
                             tone="danger"
                             className="w-full sm:w-auto"
                             onClick={() => void report(n.id)}
+                            disabled={busy}
                           >
-                            Reportar
+                            {busy ? "Enviando..." : "Reportar"}
                           </Button>
                         </div>
                       </div>
@@ -419,8 +561,9 @@ export default function NotesPanelShared({
                               tone="warn"
                               className="w-full sm:w-auto"
                               onClick={() => void loadFull(p.id)}
+                              disabled={busyId === p.id}
                             >
-                              Ver contenido
+                              {busyId === p.id ? "Cargando..." : "Ver contenido"}
                             </Button>
                           </div>
 

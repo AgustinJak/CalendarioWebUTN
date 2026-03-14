@@ -5,6 +5,7 @@ import { COURSES } from "@/lib/schedule";
 import type { NoteRecord } from "@/lib/types";
 import { deleteNote, listNotes, putNote } from "@/lib/idb";
 import { randomId } from "@/lib/storage";
+import { loadSavedAuthorName, saveAuthorName } from "@/lib/prefs";
 import Button from "./ui/Button";
 import { Card, CardBody, CardHeader } from "./ui/Card";
 import { Input, Label, Select, Textarea } from "./ui/Field";
@@ -15,6 +16,16 @@ function bytesLabel(bytes: number) {
   if (mb >= 1) return `${mb.toFixed(1)} MB`;
   if (kb >= 1) return `${kb.toFixed(0)} KB`;
   return `${bytes} B`;
+}
+
+const MAX_AUTHOR = 60;
+const MAX_TITLE = 90;
+const MAX_DESC = 600;
+
+type SortMode = "new" | "old";
+
+function includesLoose(haystack: string, needle: string) {
+  return haystack.toLowerCase().includes(needle.toLowerCase());
 }
 
 export default function NotesPanel({
@@ -28,12 +39,16 @@ export default function NotesPanel({
 }) {
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   const [authorName, setAuthorName] = useState("");
   const [courseId, setCourseId] = useState(COURSES[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [q, setQ] = useState("");
+  const [filterCourse, setFilterCourse] = useState<string>("");
+  const [sortMode, setSortMode] = useState<SortMode>("new");
 
   const courseLabel = useMemo(() => {
     const c = COURSES.find((x) => x.id === courseId);
@@ -59,6 +74,8 @@ export default function NotesPanel({
 
   useEffect(() => {
     void refresh();
+    const saved = loadSavedAuthorName();
+    if (saved) setAuthorName((v) => v || saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -72,7 +89,19 @@ export default function NotesPanel({
       onToast({ title: "Completa tu nombre y apellido", kind: "warn" });
       return;
     }
+    if (trimmedName.length > MAX_AUTHOR) {
+      onToast({ title: `Nombre demasiado largo (max ${MAX_AUTHOR}).`, kind: "warn" });
+      return;
+    }
     const trimmedTitle = title.trim() || `${courseLabel} · Apuntes`;
+    if (trimmedTitle.length > MAX_TITLE) {
+      onToast({ title: `Titulo demasiado largo (max ${MAX_TITLE}).`, kind: "warn" });
+      return;
+    }
+    if (details.trim().length > MAX_DESC) {
+      onToast({ title: `Descripcion demasiado larga (max ${MAX_DESC}).`, kind: "warn" });
+      return;
+    }
 
     const note: NoteRecord = {
       id: randomId("note"),
@@ -88,6 +117,8 @@ export default function NotesPanel({
     };
 
     try {
+      setUploading(true);
+      saveAuthorName(trimmedName);
       await putNote(note);
       onToast({ title: "Apunte subido", description: trimmedTitle, kind: "ok" });
       setTitle("");
@@ -97,8 +128,34 @@ export default function NotesPanel({
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido.";
       onToast({ title: "No se pudo subir", description: msg, kind: "danger" });
+    } finally {
+      setUploading(false);
     }
   }
+
+  const visibleNotes = useMemo(() => {
+    const needle = q.trim();
+    let arr = notes.slice();
+
+    if (filterCourse) arr = arr.filter((x) => x.courseId === filterCourse);
+
+    if (needle) {
+      arr = arr.filter((x) => {
+        const course = COURSES.find((c) => c.id === x.courseId);
+        return (
+          includesLoose(x.title ?? "", needle) ||
+          includesLoose(x.authorName ?? "", needle) ||
+          includesLoose(x.details ?? "", needle) ||
+          includesLoose(course?.name ?? "", needle)
+        );
+      });
+    }
+
+    if (sortMode === "old") arr.sort((a, b) => a.createdAt - b.createdAt);
+    else arr.sort((a, b) => b.createdAt - a.createdAt);
+
+    return arr;
+  }, [notes, q, filterCourse, sortMode]);
 
   return (
     <Card className="u-noise" id="apuntes">
@@ -122,6 +179,7 @@ export default function NotesPanel({
                     value={authorName}
                     onChange={(e) => setAuthorName(e.target.value)}
                     placeholder="Ej: Juan Perez"
+                    maxLength={MAX_AUTHOR}
                   />
                 </div>
               </div>
@@ -144,7 +202,11 @@ export default function NotesPanel({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder={`${courseLabel} · Resumen / Parciales / Guia`}
+                    maxLength={MAX_TITLE}
                   />
+                </div>
+                <div className="mt-1 text-[11px] text-white/45">
+                  {title.length}/{MAX_TITLE}
                 </div>
               </div>
               <div>
@@ -154,7 +216,11 @@ export default function NotesPanel({
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
                     placeholder="Tema, unidad, consejos..."
+                    maxLength={MAX_DESC}
                   />
+                </div>
+                <div className="mt-1 text-[11px] text-white/45">
+                  {details.length}/{MAX_DESC}
                 </div>
               </div>
               <div>
@@ -174,16 +240,17 @@ export default function NotesPanel({
               </div>
 
               <div className="flex flex-wrap items-center gap-2 pt-1">
-                <Button type="button" tone="accent" onClick={() => void onUpload()}>
-                  Subir apunte
+                <Button type="button" tone="accent" onClick={() => void onUpload()} disabled={uploading}>
+                  {uploading ? "Subiendo..." : "Subir apunte"}
                 </Button>
                 <Button
                   type="button"
                   variant="soft"
                   onClick={() => void refresh()}
                   aria-label="Recargar"
+                  disabled={loading || uploading}
                 >
-                  Recargar
+                  {loading ? "Cargando..." : "Recargar"}
                 </Button>
               </div>
             </div>
@@ -195,20 +262,53 @@ export default function NotesPanel({
               En este prototipo se guarda por dispositivo.
             </div>
 
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Buscar por titulo, autor, materia..."
+                className="h-10 text-sm"
+              />
+              <div className="flex items-center gap-2">
+                <Select
+                  value={filterCourse}
+                  onChange={(e) => setFilterCourse(e.target.value)}
+                  className="h-10 text-sm"
+                  aria-label="Filtrar por materia"
+                >
+                  <option value="">Todas</option>
+                  {COURSES.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  value={sortMode}
+                  onChange={(e) => setSortMode(e.target.value as SortMode)}
+                  className="h-10 text-sm"
+                  aria-label="Ordenar"
+                >
+                  <option value="new">Recientes</option>
+                  <option value="old">Mas antiguos</option>
+                </Select>
+              </div>
+            </div>
+
             <div className="mt-3 space-y-2">
               {loading ? (
                 <div className="rounded-xl border border-white/10 bg-white/6 p-4 text-sm text-white/65">
                   Cargando...
                 </div>
-              ) : notes.length ? (
-                notes.map((n) => {
+              ) : visibleNotes.length ? (
+                visibleNotes.map((n) => {
                   const course = COURSES.find((c) => c.id === n.courseId);
                   return (
                     <div
                       key={n.id}
                       className="rounded-2xl border border-white/10 bg-white/6 p-4"
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <div className="truncate font-medium text-white">
                             {n.title}
@@ -217,7 +317,7 @@ export default function NotesPanel({
                             {course?.name ?? "Materia"} · {n.authorName}
                           </div>
                           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/55">
-                            <span className="rounded-full border border-white/10 bg-white/6 px-2 py-0.5">
+                            <span className="inline-flex max-w-full items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-white/10 bg-white/6 px-2 py-0.5">
                               {n.filename}
                             </span>
                             <span className="rounded-full border border-white/10 bg-white/6 px-2 py-0.5">
@@ -225,10 +325,11 @@ export default function NotesPanel({
                             </span>
                           </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center sm:gap-2">
                           <Button
                             size="sm"
                             variant="soft"
+                            className="w-full sm:w-auto"
                             onClick={() => {
                               const url = URL.createObjectURL(n.blob);
                               window.open(url, "_blank", "noopener,noreferrer");
@@ -241,6 +342,7 @@ export default function NotesPanel({
                             size="sm"
                             variant="ghost"
                             tone="danger"
+                            className="w-full sm:w-auto"
                             onClick={() => {
                               void (async () => {
                                 const ok = window.confirm("Eliminar este apunte?");
@@ -256,7 +358,7 @@ export default function NotesPanel({
                         </div>
                       </div>
                       {n.details ? (
-                        <div className="mt-3 text-sm text-white/70">{n.details}</div>
+                        <div className="mt-3 break-words text-sm text-white/70">{n.details}</div>
                       ) : null}
                     </div>
                   );

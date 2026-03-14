@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { SharedPost, SharedPostType } from "@/lib/shared-types";
-import { supabaseRest } from "@/lib/supabase-rest";
+import { reporterHashFromRequest, supabaseRest } from "@/lib/supabase-rest";
+import { checkRateLimit } from "@/lib/rate-limit";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -85,6 +86,22 @@ export async function POST(req: Request) {
   }
   if (!authorName) {
     return badRequest("Completa tu nombre y apellido.");
+  }
+
+  // Anti-spam: limit creations per browser/device fingerprint.
+  // This is best-effort (in-memory); combined with reports/hide it reduces abuse.
+  try {
+    const h = reporterHashFromRequest(req);
+    const rl = checkRateLimit(`create:${type}:${h}`, 60_000, 2);
+    if (!rl.ok) {
+      const retrySec = Math.max(1, Math.ceil(rl.retryAfterMs / 1000));
+      return NextResponse.json(
+        { error: `Estas publicando muy rapido. Espera ${retrySec}s y reintenta.` },
+        { status: 429, headers: { "retry-after": String(retrySec) } },
+      );
+    }
+  } catch {
+    // If fingerprinting isn't available, skip rate limiting.
   }
 
   if (type === "note") {

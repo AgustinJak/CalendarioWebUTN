@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { reporterHashFromRequest, supabaseRest } from "@/lib/supabase-rest";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -34,6 +35,15 @@ export async function POST(req: Request) {
 
   try {
     const reporter_hash = reporterHashFromRequest(req);
+
+    const rl = checkRateLimit(`report:${reporter_hash}`, 60_000, 6);
+    if (!rl.ok) {
+      const retrySec = Math.max(1, Math.ceil(rl.retryAfterMs / 1000));
+      return NextResponse.json(
+        { error: `Demasiados reportes seguidos. Espera ${retrySec}s y reintenta.` },
+        { status: 429, headers: { "retry-after": String(retrySec) } },
+      );
+    }
 
     // Insert report; ignore duplicates for the same reporter_hash.
     const { data: inserted } = await supabaseRest<unknown[]>("/rest/v1/reports", {

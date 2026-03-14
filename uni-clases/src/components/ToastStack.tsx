@@ -6,10 +6,10 @@ import { cx } from "./ui/cx";
 const kindStyles: Record<Toast["kind"], string> = {
   // Mobile: use an opaque base so text remains readable without backdrop blur.
   // Desktop+: keep the tinted glass look.
-  info: "border-white/18 bg-[#071724]/92 sm:border-white/12 sm:bg-white/8",
-  ok: "border-emerald-200/35 bg-[#071724]/92 sm:border-emerald-200/20 sm:bg-emerald-200/10",
-  warn: "border-amber-200/35 bg-[#071724]/92 sm:border-amber-200/20 sm:bg-amber-200/10",
-  danger: "border-rose-200/35 bg-[#071724]/92 sm:border-rose-200/20 sm:bg-rose-200/10",
+  info: "border-white/18 bg-[#050f18]/96 sm:border-white/12 sm:bg-white/8",
+  ok: "border-emerald-200/35 bg-[#050f18]/96 sm:border-emerald-200/20 sm:bg-emerald-200/10",
+  warn: "border-amber-200/35 bg-[#050f18]/96 sm:border-amber-200/20 sm:bg-amber-200/10",
+  danger: "border-rose-200/35 bg-[#050f18]/96 sm:border-rose-200/20 sm:bg-rose-200/10",
 };
 
 export default function ToastStack({
