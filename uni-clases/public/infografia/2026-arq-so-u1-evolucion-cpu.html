@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evolución del Procesamiento de CPU — Sistemas Operativos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0C0E14;
+  --bg2:      #12151E;
+  --bg3:      #181C28;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.13);
+  --text:     #E8E6DE;
+  --muted:    #7A7A8A;
+  --accent1:  #E8A87C;   /* warm amber */
+  --accent2:  #6EB5FF;   /* cool blue */
+  --accent3:  #7EEBC4;   /* teal */
+  --accent4:  #C77DFF;   /* violet */
+  --cpu:      #6EB5FF;
+  --io:       #444860;
+  --idle:     #252830;
+  --os:       #C77DFF;
+  --red:      #FF6B6B;
+  --green:    #7EEBC4;
+  --serif:    'DM Serif Display', Georgia, serif;
+  --mono:     'DM Mono', monospace;
+  --sans:     'Outfit', sans-serif;
+  --r:        10px;
+  --r2:       16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.65;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── NOISE TEXTURE ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+/* ── GRID BG ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(110,181,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110,181,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* ── HERO ── */
+.hero {
+  text-align: center;
+  padding: 72px 0 56px;
+  position: relative;
+}
+
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent1);
+  margin-bottom: 20px;
+  display: block;
+}
+
+.hero h1 {
+  font-family: var(--serif);
+  font-size: clamp(36px, 6vw, 60px);
+  line-height: 1.1;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.hero h1 em {
+  color: var(--accent2);
+  font-style: italic;
+}
+
+.hero-sub {
+  font-size: 16px;
+  color: var(--muted);
+  max-width: 520px;
+  margin: 18px auto 0;
+  font-weight: 300;
+}
+
+/* decorative line */
+.hero-line {
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent2), var(--accent3));
+  margin: 32px auto;
+  border-radius: 2px;
+}
+
+/* ── SECTION HEADERS ── */
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+/* ── INSTRUCTION CYCLE EXPLAINER ── */
+.cycle-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 32px;
+  margin-bottom: 48px;
+}
+
+.cycle-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.cycle-desc {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 28px;
+  max-width: 560px;
+}
+
+.cycle-steps {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.cycle-step {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+}
+
+.cycle-step:not(:last-child)::after {
+  content: '→';
+  position: absolute;
+  right: -10px;
+  top: 28px;
+  color: var(--muted);
+  font-size: 18px;
+  z-index: 2;
+}
+
+.cycle-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  border: 1px solid;
+  letter-spacing: 0.05em;
+}
+
+.cycle-step:nth-child(1) .cycle-icon { background: rgba(110,181,255,0.1); border-color: rgba(110,181,255,0.3); color: var(--accent2); }
+.cycle-step:nth-child(2) .cycle-icon { background: rgba(126,235,196,0.1); border-color: rgba(126,235,196,0.3); color: var(--accent3); }
+.cycle-step:nth-child(3) .cycle-icon { background: rgba(232,168,124,0.1); border-color: rgba(232,168,124,0.3); color: var(--accent1); }
+.cycle-step:nth-child(4) .cycle-icon { background: rgba(199,125,255,0.1); border-color: rgba(199,125,255,0.3); color: var(--accent4); }
+
+.cycle-step-name {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.cycle-step-detail {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.cycle-loop {
+  margin-top: 20px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+.cycle-loop span {
+  color: var(--accent1);
+}
+
+/* ── MAIN MODELS ── */
+.models-intro {
+  font-family: var(--serif);
+  font-size: clamp(24px, 3.5vw, 34px);
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.models-intro em { color: var(--accent1); font-style: italic; }
+
+.models-desc {
+  color: var(--muted);
+  margin-bottom: 36px;
+  max-width: 600px;
+}
+
+/* tabs */
+.tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.tab {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab:hover { border-color: var(--border2); background: var(--bg3); color: var(--text); }
+
+.tab.active {
+  background: var(--accent-tab, var(--accent2));
+  border-color: transparent;
+  color: var(--bg);
+}
+
+.tab .era {
+  font-family: var(--mono);
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* model card */
+.model-panel {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.model-panel.active { display: block; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.model-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  overflow: hidden;
+}
+
+.model-header {
+  padding: 28px 32px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.model-name {
+  font-family: var(--serif);
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.model-era {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.model-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  text-align: right;
+}
+
+.stat-val {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.stat-lbl {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.model-body {
+  padding: 28px 32px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+@media (max-width: 640px) {
+  .model-body { grid-template-columns: 1fr; }
+  .model-header { padding: 20px; }
+  .model-body { padding: 20px; }
+}
+
+.model-desc {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 18px;
+  grid-column: 1 / -1;
+}
+
+/* TIMELINE */
+.timeline-wrap {
+  grid-column: 1 / -1;
+}
+
+.timeline-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.timeline {
+  display: flex;
+  gap: 3px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.seg {
+  height: 36px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: transform 0.15s;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+.seg:hover { transform: scaleY(1.1); }
+
+.seg.cpu  { background: rgba(110,181,255,0.2); border: 1px solid rgba(110,181,255,0.35); color: var(--accent2); }
+.seg.io   { background: rgba(100,105,140,0.15); border: 1px solid rgba(100,105,140,0.25); color: var(--muted); }
+.seg.idle { background: rgba(37,40,48,0.8); border: 1px solid var(--border); color: #444; }
+.seg.os   { background: rgba(199,125,255,0.2); border: 1px solid rgba(199,125,255,0.35); color: var(--accent4); }
+.seg.prog-a { background: rgba(110,181,255,0.18); border: 1px solid rgba(110,181,255,0.3); color: var(--accent2); }
+.seg.prog-b { background: rgba(126,235,196,0.18); border: 1px solid rgba(126,235,196,0.3); color: var(--accent3); }
+.seg.prog-c { background: rgba(199,125,255,0.18); border: 1px solid rgba(199,125,255,0.3); color: var(--accent4); }
+
+.timeline-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.timeline-prog { font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 52px; }
+
+/* LEGEND */
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  grid-column: 1 / -1;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* STEPS */
+.steps-col { }
+
+.steps-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.step-item {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+  align-items: flex-start;
+}
+
+.step-n {
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.step-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.step-text strong {
+  color: var(--accent-step, var(--accent2));
+}
+
+/* HIGHLIGHTS */
+.highlights-col { }
+
+.highlight-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.highlight-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.tag-nuevo    { color: var(--green); }
+.tag-problema { color: var(--red); }
+.tag-clave    { color: var(--accent1); }
+
+.highlight-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* ── CONTEXT SWITCH SECTION ── */
+.context-section {
+  margin: 56px 0;
+}
+
+.context-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 32px;
+}
+
+.context-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 20px;
+  align-items: center;
+  margin-top: 24px;
+}
+
+@media (max-width: 600px) {
+  .context-grid { grid-template-columns: 1fr; }
+  .ctx-arrow { transform: rotate(90deg); }
+}
+
+.ctx-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 18px;
+}
+
+.ctx-box-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.ctx-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.ctx-row:last-child { border-bottom: none; }
+
+.ctx-key { color: var(--muted); }
+.ctx-val { color: var(--accent2); font-weight: 500; }
+.ctx-val.saved { color: var(--accent3); }
+.ctx-val.loaded { color: var(--accent1); }
+
+.ctx-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.ctx-arrow-line {
+  width: 2px;
+  height: 40px;
+  background: linear-gradient(var(--accent4), var(--accent2));
+  border-radius: 2px;
+  position: relative;
+}
+
+.ctx-arrow-line::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: -4px;
+  border: 5px solid transparent;
+  border-top-color: var(--accent2);
+}
+
+.ctx-label-save { color: var(--accent4); font-size: 11px; }
+.ctx-label-load { color: var(--accent2); font-size: 11px; }
+
+.process-table-box {
+  background: linear-gradient(135deg, rgba(199,125,255,0.08), rgba(110,181,255,0.08));
+  border: 1px solid rgba(199,125,255,0.2);
+  border-radius: var(--r);
+  padding: 16px;
+  margin-top: 20px;
+}
+
+.pt-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent4);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.pt-entries {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.pt-entry {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.pt-entry-name { color: var(--muted); margin-bottom: 4px; font-size: 10px; letter-spacing: 0.08em; }
+.pt-entry-pc { color: var(--accent2); font-weight: 500; }
+.pt-entry-state { font-size: 10px; margin-top: 2px; }
+.pt-entry-state.running { color: var(--green); }
+.pt-entry-state.waiting { color: var(--muted); }
+.pt-entry-state.ready   { color: var(--accent1); }
+
+/* ── COMPARISON TABLE ── */
+.compare-section { margin: 56px 0; }
+
+.compare-title {
+  font-family: var(--serif);
+  font-size: clamp(22px, 3vw, 30px);
+  margin-bottom: 24px;
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  overflow: hidden;
+}
+
+.compare-table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+}
+
+.compare-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  line-height: 1.5;
+}
+
+.compare-table tr:last-child td { border-bottom: none; }
+
+.compare-table tr:hover td { background: var(--bg3); transition: background 0.15s; }
+
+.model-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.chip-serie   { background: rgba(255,107,107,0.1); border-color: rgba(255,107,107,0.25); color: var(--red); }
+.chip-lotes   { background: rgba(232,168,124,0.1); border-color: rgba(232,168,124,0.25); color: var(--accent1); }
+.chip-multi   { background: rgba(126,235,196,0.1); border-color: rgba(126,235,196,0.25); color: var(--accent3); }
+.chip-ts      { background: rgba(110,181,255,0.1); border-color: rgba(110,181,255,0.25); color: var(--accent2); }
+
+.good { color: var(--green); }
+.bad  { color: var(--red); }
+.mid  { color: var(--accent1); }
+
+/* ── CPU USAGE BAR ── */
+.usage-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.usage-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--bg3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.usage-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s ease;
+}
+
+.usage-pct {
+  font-family: var(--mono);
+  font-size: 12px;
+  min-width: 32px;
+  text-align: right;
+}
+
+/* ── INTERRUPCIONES EXPLAINER ── */
+.interrupt-section { margin: 56px 0; }
+
+.interrupt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+}
+
+@media (max-width: 560px) {
+  .interrupt-grid { grid-template-columns: 1fr; }
+}
+
+.interrupt-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.interrupt-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.int-programa::before  { background: var(--accent2); }
+.int-es::before        { background: var(--accent3); }
+.int-timer::before     { background: var(--accent1); }
+.int-hardware::before  { background: var(--red); }
+
+.interrupt-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.interrupt-card h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.interrupt-card p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.interrupt-card .example {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg3);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+/* ── FOOTER NOTE ── */
+.footer-note {
+  margin-top: 64px;
+  padding: 24px 28px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.footer-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.footer-note-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.footer-note p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.footer-refs {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── SCROLL REVEAL ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ── HERO ── -->
+  <header class="hero reveal">
+    <span class="hero-eyebrow">UTN BA · Sistemas Operativos · Unidad 1</span>
+    <h1>Evolución del<br><em>Procesamiento</em> de CPU</h1>
+    <p class="hero-sub">
+      De los años 40 al tiempo compartido: cómo el procesador pasó de estar 97% ocioso
+      a aprovechar cada ciclo disponible.
+    </p>
+    <div class="hero-line"></div>
+  </header>
+
+  <!-- ── CICLO BASE ── -->
+  <section class="reveal">
+    <div class="cycle-box">
+      <div class="section-label">Fundamento</div>
+      <div class="cycle-title">El ciclo de instrucción</div>
+      <p class="cycle-desc">
+        Sin importar la época o el modelo, el procesador siempre repite este ciclo.
+        Todo lo demás es cómo se organiza <em>qué</em> instrucciones procesar y <em>cuándo</em>.
+      </p>
+      <div class="cycle-steps">
+        <div class="cycle-step">
+          <div class="cycle-icon">FETCH</div>
+          <div class="cycle-step-name">1. Búsqueda</div>
+          <div class="cycle-step-detail">PC → memoria<br>trae instrucción<br>al registro IR</div>
+        </div>
+        <div class="cycle-step">
+          <div class="cycle-icon">DEC</div>
+          <div class="cycle-step-name">2. Decodificación</div>
+          <div class="cycle-step-detail">IR analiza<br>qué operación<br>debe ejecutar</div>
+        </div>
+        <div class="cycle-step">
+          <div class="cycle-icon">EXEC</div>
+          <div class="cycle-step-name">3. Ejecución</div>
+          <div class="cycle-step-detail">ALU procesa<br>o inicia<br>operación E/S</div>
+        </div>
+        <div class="cycle-step">
+          <div class="cycle-icon">PC+1</div>
+          <div class="cycle-step-name">4. Avance</div>
+          <div class="cycle-step-detail">PC se incrementa<br>apunta a la<br>próxima instrucción</div>
+        </div>
+      </div>
+      <div class="cycle-loop">↻ se repite por cada instrucción · millones de veces por segundo · <span>eternamente</span></div>
+    </div>
+  </section>
+
+  <!-- ── MODELOS ── -->
+  <section class="reveal">
+    <div class="section-label">Historia</div>
+    <div class="models-intro">Los cuatro modelos de<br><em>procesamiento</em></div>
+    <p class="models-desc">
+      Cada generación resolvió el problema principal del anterior.
+      Hacé clic en cada pestaña para ver qué pasa ciclo a ciclo.
+    </p>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" style="--accent-tab: #FF6B6B" onclick="showModel('serie', this)">
+        <span class="era">1940s</span> Serie
+      </button>
+      <button class="tab" style="--accent-tab: var(--accent1)" onclick="showModel('lotes', this)">
+        <span class="era">1950s</span> Lotes simples
+      </button>
+      <button class="tab" style="--accent-tab: var(--accent3)" onclick="showModel('multi', this)">
+        <span class="era">1960s</span> Multiprogramado
+      </button>
+      <button class="tab" style="--accent-tab: var(--accent2)" onclick="showModel('ts', this)">
+        <span class="era">1960s+</span> Tiempo compartido
+      </button>
+    </div>
+
+    <!-- ── PANEL SERIE ── -->
+    <div class="model-panel active" id="panel-serie">
+      <div class="model-card">
+        <div class="model-header">
+          <div>
+            <div class="model-name">Procesamiento en serie</div>
+            <div class="model-era">Años 1940 – mediados 1950 · sin sistema operativo</div>
+          </div>
+          <div class="model-stats">
+            <div class="stat">
+              <div class="stat-val" style="color:var(--red)">~3%</div>
+              <div class="stat-lbl">uso real CPU</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val">1</div>
+              <div class="stat-lbl">prog. a la vez</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val" style="color:var(--red)">97%</div>
+              <div class="stat-lbl">CPU ociosa</div>
+            </div>
+          </div>
+        </div>
+        <div class="model-body">
+          <p class="model-desc">
+            El programador <em>era</em> el sistema operativo. Reservaba tiempo en una planilla, llegaba físicamente a la máquina, cargaba el compilador a mano, luego el programa en tarjetas perforadas, luego los datos. Ejecutaba, esperaba, recogía el resultado impreso. No había scheduler, no había abstracción. <strong>El procesador esperaba activamente al disco</strong> consultando en loop "¿terminaste?" — tiempo de CPU desperdiciado para siempre.
+          </p>
+
+          <div class="timeline-wrap">
+            <div class="timeline-label">Línea de tiempo — un solo programa</div>
+            <div class="timeline-row">
+              <span class="timeline-prog">Prog A</span>
+              <div class="timeline">
+                <div class="seg cpu" style="width:42px">CPU</div>
+                <div class="seg io"  style="width:28px" title="E/S disco">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg cpu" style="width:42px">CPU</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg io"  style="width:28px">E/S</div>
+                <div class="seg cpu" style="width:42px">FIN</div>
+              </div>
+            </div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(110,181,255,0.5)"></div> CPU activa</div>
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(100,105,140,0.4)"></div> Espera E/S (busy-waiting)</div>
+            </div>
+          </div>
+
+          <div class="steps-col" style="--accent-step: var(--red)">
+            <div class="steps-title">Ciclo interno</div>
+            <div class="step-item">
+              <div class="step-n">1</div>
+              <div class="step-text">PC apunta a instrucción. <strong>FETCH:</strong> se carga en IR.</div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">2</div>
+              <div class="step-text">Instrucción de leer disco → el procesador envía orden y entra en <strong>busy-waiting</strong>: loop preguntando "¿terminaste?"</div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">3</div>
+              <div class="step-text">Cada ciclo de espera consume tiempo de CPU. <strong>Nadie más puede usarla.</strong></div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">4</div>
+              <div class="step-text">Disco confirma. PC+1. Sigue. Próxima E/S → nueva espera larga.</div>
+            </div>
+          </div>
+
+          <div class="highlights-col">
+            <div class="highlight-card">
+              <div class="highlight-tag tag-problema">Problema 1</div>
+              <div class="highlight-text">Planificación manual. Si el programa tarda más de lo reservado, los demás esperan parados.</div>
+            </div>
+            <div class="highlight-card">
+              <div class="highlight-tag tag-problema">Problema 2</div>
+              <div class="highlight-text">Tiempo de setup enorme. Cargar compilador + programa + datos antes de cada corrida.</div>
+            </div>
+            <div class="highlight-card">
+              <div class="highlight-tag tag-clave">Por qué importa</div>
+              <div class="highlight-text">El hardware costaba millones. Que la CPU esté ociosa el 97% del tiempo era inaceptable.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PANEL LOTES ── -->
+    <div class="model-panel" id="panel-lotes">
+      <div class="model-card">
+        <div class="model-header">
+          <div>
+            <div class="model-name">Sistemas en lotes simples</div>
+            <div class="model-era">Mediados 1950s · surge el monitor/supervisor</div>
+          </div>
+          <div class="model-stats">
+            <div class="stat">
+              <div class="stat-val" style="color:var(--accent1)">~3%</div>
+              <div class="stat-lbl">uso real CPU</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val">1</div>
+              <div class="stat-lbl">prog. a la vez</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val" style="color:var(--accent3)">auto</div>
+              <div class="stat-lbl">carga de trabajos</div>
+            </div>
+          </div>
+        </div>
+        <div class="model-body">
+          <p class="model-desc">
+            El <strong>monitor</strong> (ancestro directo del SO moderno) vive permanentemente en una zona protegida de memoria. Carga el siguiente trabajo de la cinta magnética automáticamente al terminar el anterior, sin intervención humana entre programas. El problema del tiempo de setup desaparece. <strong>Pero el procesador sigue ocioso durante toda la E/S</strong> — un solo programa en memoria, sin nada que aproveche la espera.
+          </p>
+
+          <div class="timeline-wrap">
+            <div class="timeline-label">Línea de tiempo — el monitor encadena trabajos automáticamente</div>
+            <div class="timeline-row">
+              <span class="timeline-prog">Monitor</span>
+              <div class="timeline">
+                <div class="seg os"   style="width:60px">carga A</div>
+                <div class="seg idle" style="width:220px"></div>
+                <div class="seg os"   style="width:60px">carga B</div>
+                <div class="seg idle" style="width:160px"></div>
+                <div class="seg os"   style="width:60px">carga C</div>
+              </div>
+            </div>
+            <div class="timeline-row">
+              <span class="timeline-prog">Prog A</span>
+              <div class="timeline">
+                <div class="seg idle" style="width:60px"></div>
+                <div class="seg cpu"  style="width:36px">CPU</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg cpu"  style="width:36px">FIN→</div>
+              </div>
+            </div>
+            <div class="timeline-row">
+              <span class="timeline-prog">Prog B</span>
+              <div class="timeline">
+                <div class="seg idle" style="width:340px"></div>
+                <div class="seg cpu"  style="width:36px">CPU</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg io"   style="width:24px">E/S</div>
+                <div class="seg cpu"  style="width:36px">FIN→</div>
+              </div>
+            </div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(110,181,255,0.5)"></div> CPU activa</div>
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(100,105,140,0.4)"></div> Espera E/S</div>
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(199,125,255,0.4)"></div> Monitor SO</div>
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(37,40,48,0.8);border:1px solid #333"></div> CPU ociosa</div>
+            </div>
+          </div>
+
+          <div class="steps-col" style="--accent-step: var(--accent1)">
+            <div class="steps-title">Ciclo interno con monitor</div>
+            <div class="step-item">
+              <div class="step-n">1</div>
+              <div class="step-text">Monitor residente carga el programa A en el área de usuario. Ejecuta <strong>instrucción de salto</strong> → PC apunta a 1ra instrucción de A.</div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">2</div>
+              <div class="step-text">A corre el ciclo Fetch→Decode→Execute normal. Cuando termina, ejecuta instrucción especial que <strong>devuelve control al monitor.</strong></div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">3</div>
+              <div class="step-text">Monitor carga B automáticamente desde la cinta. Sin intervención humana.</div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">4</div>
+              <div class="step-text">Problema persiste: durante la E/S de A, <strong>nadie más corre.</strong> La CPU espera.</div>
+            </div>
+          </div>
+
+          <div class="highlights-col">
+            <div class="highlight-card">
+              <div class="highlight-tag tag-nuevo">Innovación</div>
+              <div class="highlight-text">Protección de memoria: A no puede sobreescribir la zona del monitor. Primer germen del modo kernel.</div>
+            </div>
+            <div class="highlight-card">
+              <div class="highlight-tag tag-nuevo">Innovación</div>
+              <div class="highlight-text">Instrucciones privilegiadas: solo el monitor puede ejecutarlas. Los programas de usuario viven en modo restringido.</div>
+            </div>
+            <div class="highlight-card">
+              <div class="highlight-tag tag-problema">Problema persiste</div>
+              <div class="highlight-text">La utilización de CPU sigue siendo ~3%. El tiempo de E/S (≈30x más lento que la CPU) se pierde por completo.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PANEL MULTI ── -->
+    <div class="model-panel" id="panel-multi">
+      <div class="model-card">
+        <div class="model-header">
+          <div>
+            <div class="model-name">Multiprogramación</div>
+            <div class="model-era">Principios 1960s · IBM System/360 · interrupciones + DMA</div>
+          </div>
+          <div class="model-stats">
+            <div class="stat">
+              <div class="stat-val" style="color:var(--green)">60–90%</div>
+              <div class="stat-lbl">uso real CPU</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val">N</div>
+              <div class="stat-lbl">progs en memoria</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val" style="color:var(--accent3)">int.</div>
+              <div class="stat-lbl">mecanismo clave</div>
+            </div>
+          </div>
+        </div>
+        <div class="model-body">
+          <p class="model-desc">
+            La gran revolución. Varios programas en memoria simultáneamente. Cuando A espera E/S, el SO cede la CPU a B. Cuando el disco termina, <strong>interrumpe</strong> al procesador — que en ese momento puede estar ejecutando B — para notificarle. El SO guarda el contexto de B y reanuda A exactamente donde lo había dejado. La CPU casi nunca queda ociosa.
+          </p>
+
+          <div class="timeline-wrap">
+            <div class="timeline-label">La misma cantidad de trabajo — mucho menos tiempo total</div>
+            <div class="timeline-row">
+              <span class="timeline-prog">CPU real</span>
+              <div class="timeline">
+                <div class="seg prog-a" style="width:38px">A</div>
+                <div class="seg prog-b" style="width:38px">B</div>
+                <div class="seg prog-c" style="width:38px">C</div>
+                <div class="seg prog-a" style="width:38px">A</div>
+                <div class="seg os"     style="width:24px">int</div>
+                <div class="seg prog-b" style="width:38px">B</div>
+                <div class="seg prog-a" style="width:38px">A</div>
+                <div class="seg prog-c" style="width:38px">C</div>
+                <div class="seg prog-b" style="width:38px">B</div>
+                <div class="seg os"     style="width:24px">int</div>
+                <div class="seg prog-a" style="width:38px">A</div>
+                <div class="seg prog-c" style="width:38px">C</div>
+              </div>
+            </div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(110,181,255,0.4)"></div> Proceso A</div>
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(126,235,196,0.4)"></div> Proceso B</div>
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(199,125,255,0.4)"></div> Proceso C</div>
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(199,125,255,0.5)"></div> Manejo interrupción</div>
+            </div>
+          </div>
+
+          <div class="steps-col" style="--accent-step: var(--accent3)">
+            <div class="steps-title">Ciclo con interrupciones</div>
+            <div class="step-item">
+              <div class="step-n">1</div>
+              <div class="step-text">A ejecuta. Llega a syscall de disco → SO ordena al controlador y <strong>devuelve CPU a B sin esperar.</strong></div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">2</div>
+              <div class="step-text">B corre. Al fin de cada instrucción, el procesador consulta el <strong>registro de interrupciones.</strong></div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">3</div>
+              <div class="step-text">Disco termina → envía señal. El SO <strong>guarda contexto de B</strong> (PC, PSW, registros) en la process table.</div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">4</div>
+              <div class="step-text">SO <strong>restaura contexto de A</strong> exactamente como estaba. A continúa en la instrucción siguiente a su syscall.</div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">5</div>
+              <div class="step-text"><strong>DMA:</strong> el controlador transfiere datos a RAM sin molestar al procesador. Solo interrumpe al final.</div>
+            </div>
+          </div>
+
+          <div class="highlights-col">
+            <div class="highlight-card">
+              <div class="highlight-tag tag-nuevo">La clave: context switch</div>
+              <div class="highlight-text">El SO fotografia PC + todos los registros del proceso suspendido y los guarda en la process table. Restaurarlos es arrancar desde donde quedó.</div>
+            </div>
+            <div class="highlight-card">
+              <div class="highlight-tag tag-nuevo">Innovación: DMA</div>
+              <div class="highlight-text">Direct Memory Access: el controlador de E/S transfiere datos directamente a RAM, sin pasar por el procesador. La CPU queda libre.</div>
+            </div>
+            <div class="highlight-card">
+              <div class="highlight-tag tag-clave">Resultado</div>
+              <div class="highlight-text">Utilización de CPU sube a 60–90%. El mismo hardware procesa mucho más trabajo por hora.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PANEL TIEMPO COMPARTIDO ── -->
+    <div class="model-panel" id="panel-ts">
+      <div class="model-card">
+        <div class="model-header">
+          <div>
+            <div class="model-name">Tiempo compartido</div>
+            <div class="model-era">1960s en adelante · múltiples usuarios interactivos</div>
+          </div>
+          <div class="model-stats">
+            <div class="stat">
+              <div class="stat-val" style="color:var(--green)">alta</div>
+              <div class="stat-lbl">utilización CPU</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val">1/n</div>
+              <div class="stat-lbl">CPU por usuario</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val" style="color:var(--accent2)">~ms</div>
+              <div class="stat-lbl">respuesta percibida</div>
+            </div>
+          </div>
+        </div>
+        <div class="model-body">
+          <p class="model-desc">
+            Igual que multiprogramación, pero el <strong>temporizador de hardware</strong> interrumpe al procesador cada pocos milisegundos aunque el proceso actual no haya pedido E/S. Esto permite que múltiples usuarios interactivos compartan la CPU. La técnica funciona porque los humanos reaccionamos en cientos de milisegundos — la CPU puede atender a docenas de usuarios en ese tiempo.
+          </p>
+
+          <div class="timeline-wrap">
+            <div class="timeline-label">Quantum de tiempo fijo — el timer fuerza el cambio</div>
+            <div class="timeline-row">
+              <span class="timeline-prog">CPU real</span>
+              <div class="timeline">
+                <div class="seg prog-a" style="width:46px">U1</div>
+                <div class="seg os"     style="width:16px">sw</div>
+                <div class="seg prog-b" style="width:46px">U2</div>
+                <div class="seg os"     style="width:16px">sw</div>
+                <div class="seg prog-c" style="width:46px">U3</div>
+                <div class="seg os"     style="width:16px">sw</div>
+                <div class="seg prog-a" style="width:46px">U1</div>
+                <div class="seg os"     style="width:16px">sw</div>
+                <div class="seg prog-b" style="width:46px">U2</div>
+                <div class="seg os"     style="width:16px">sw</div>
+                <div class="seg prog-c" style="width:46px">U3</div>
+                <div class="seg os"     style="width:16px">sw</div>
+                <div class="seg prog-a" style="width:46px">U1</div>
+              </div>
+            </div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(110,181,255,0.4)"></div> Usuario 1</div>
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(126,235,196,0.4)"></div> Usuario 2</div>
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(199,125,255,0.3)"></div> Usuario 3</div>
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(199,125,255,0.5)"></div> Context switch (SO)</div>
+            </div>
+          </div>
+
+          <div class="steps-col" style="--accent-step: var(--accent2)">
+            <div class="steps-title">Ciclo con quantum de tiempo</div>
+            <div class="step-item">
+              <div class="step-n">1</div>
+              <div class="step-text">Usuario 1 corre. Timer cuenta hacia atrás. Al expirar → <strong>interrupción de temporizador.</strong></div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">2</div>
+              <div class="step-text">SO guarda contexto completo de U1 en process table (PC, PSW, registros, archivos abiertos).</div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">3</div>
+              <div class="step-text">Si U2 no entra en RAM libre → <strong>swap out</strong>: estado de U2 se escribe a disco. Solo si es necesario.</div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">4</div>
+              <div class="step-text">Se carga contexto de U2. PC apunta a donde U2 había quedado. Continúa. <strong>U2 no nota nada.</strong></div>
+            </div>
+            <div class="step-item">
+              <div class="step-n">5</div>
+              <div class="step-text">Con n=3, cada uno recibe 1/3 de CPU. A 2GHz y quantum de 20ms → <strong>660M instrucciones por turno.</strong></div>
+            </div>
+          </div>
+
+          <div class="highlights-col">
+            <div class="highlight-card">
+              <div class="highlight-tag tag-clave">Por qué funciona</div>
+              <div class="highlight-text">Los humanos reaccionamos en ~200ms. La CPU da vueltas completas entre todos los usuarios varias veces antes de que notemos algo.</div>
+            </div>
+            <div class="highlight-card">
+              <div class="highlight-tag tag-nuevo">Diferencia con multiprog.</div>
+              <div class="highlight-text">Multiprogramación: cambio de proceso por E/S. Tiempo compartido: cambio de proceso por timer, aunque no haya E/S. Es proactivo.</div>
+            </div>
+            <div class="highlight-card">
+              <div class="highlight-tag tag-problema">Nuevos desafíos</div>
+              <div class="highlight-text">Protección entre usuarios. Sistema de archivos con permisos. Conflictos de recursos (impresoras). El SO se complejiza significativamente.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CONTEXT SWITCH ── -->
+  <section class="context-section reveal">
+    <div class="section-label">Concepto clave</div>
+    <div class="models-intro" style="margin-bottom: 6px;">El <em>context switch</em></div>
+    <p class="models-desc">
+      La fotografía que el SO saca de un proceso antes de cederle la CPU a otro.
+      Sin esto, la multiprogramación sería imposible.
+    </p>
+    <div class="context-card">
+      <div class="context-grid">
+        <div>
+          <div class="ctx-box">
+            <div class="ctx-box-title" style="color:var(--accent2)">Proceso A — en ejecución</div>
+            <div class="ctx-row"><span class="ctx-key">PC</span><span class="ctx-val">0x4A3F</span></div>
+            <div class="ctx-row"><span class="ctx-key">PSW</span><span class="ctx-val">running</span></div>
+            <div class="ctx-row"><span class="ctx-key">R1</span><span class="ctx-val">0x0007</span></div>
+            <div class="ctx-row"><span class="ctx-key">R2</span><span class="ctx-val">0x000D</span></div>
+            <div class="ctx-row"><span class="ctx-key">SP</span><span class="ctx-val">0xFF80</span></div>
+          </div>
+        </div>
+
+        <div class="ctx-arrow">
+          <span class="ctx-label-save">guarda →</span>
+          <div class="ctx-arrow-line"></div>
+          <span class="ctx-label-load">← restaura</span>
+        </div>
+
+        <div>
+          <div class="process-table-box">
+            <div class="pt-title">Process Table (en memoria del SO)</div>
+            <div class="pt-entries">
+              <div class="pt-entry">
+                <div class="pt-entry-name">PROCESO A</div>
+                <div class="pt-entry-pc">PC: 0x4A3F</div>
+                <div class="pt-entry-state waiting">suspended</div>
+              </div>
+              <div class="pt-entry" style="border-color:rgba(126,235,196,0.3)">
+                <div class="pt-entry-name">PROCESO B</div>
+                <div class="pt-entry-pc" style="color:var(--accent3)">PC: 0x8B12</div>
+                <div class="pt-entry-state running">running</div>
+              </div>
+              <div class="pt-entry">
+                <div class="pt-entry-name">PROCESO C</div>
+                <div class="pt-entry-pc">PC: 0x2C40</div>
+                <div class="pt-entry-state ready">ready</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size: 13px; color: var(--muted); margin-top: 20px; text-align: center; line-height: 1.6;">
+        Cuando el scheduler elige A de nuevo, el SO carga la entry de la process table de vuelta a los registros del hardware.<br>
+        <strong style="color: var(--text)">El PC apunta a 0x4A3F — A continúa exactamente donde fue interrumpido.</strong>
+      </p>
+    </div>
+  </section>
+
+  <!-- ── INTERRUPCIONES ── -->
+  <section class="interrupt-section reveal">
+    <div class="section-label">Mecanismo fundamental</div>
+    <div class="models-intro" style="margin-bottom: 6px;">Los 4 tipos de <em>interrupciones</em></div>
+    <p class="models-desc">
+      Una interrupción suspende el ciclo normal de instrucciones para atender un evento.
+      Son lo que hace posible que el SO retome el control de la CPU.
+    </p>
+    <div class="interrupt-grid">
+      <div class="interrupt-card int-programa">
+        <div class="interrupt-icon" style="background:rgba(110,181,255,0.1)">⚡</div>
+        <h4 style="color:var(--accent2)">De programa</h4>
+        <p>Generadas por la ejecución de una instrucción del propio programa.</p>
+        <div class="example">ej: división por cero · overflow aritmético · syscall · acceso a memoria inválida</div>
+      </div>
+      <div class="interrupt-card int-es">
+        <div class="interrupt-icon" style="background:rgba(126,235,196,0.1)">💾</div>
+        <h4 style="color:var(--accent3)">De E/S</h4>
+        <p>Generada por el controlador de un dispositivo para indicar que terminó una operación.</p>
+        <div class="example">ej: disco terminó de leer · impresora lista · teclado tiene dato</div>
+      </div>
+      <div class="interrupt-card int-timer">
+        <div class="interrupt-icon" style="background:rgba(232,168,124,0.1)">⏱</div>
+        <h4 style="color:var(--accent1)">De temporizador</h4>
+        <p>El reloj del sistema interrumpe cada N milisegundos. Esencial para el tiempo compartido.</p>
+        <div class="example">ej: quantum expirado → forzar context switch aunque no haya E/S</div>
+      </div>
+      <div class="interrupt-card int-hardware">
+        <div class="interrupt-icon" style="background:rgba(255,107,107,0.1)">🔴</div>
+        <h4 style="color:var(--red)">Fallo de hardware</h4>
+        <p>Error físico irrecuperable que requiere atención inmediata del SO.</p>
+        <div class="example">ej: error de paridad en RAM · fallo de fuente · temperatura crítica</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── TABLA COMPARATIVA ── -->
+  <section class="compare-section reveal">
+    <div class="compare-title">Comparación directa</div>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Modelo</th>
+          <th>Progs en memoria</th>
+          <th>Uso de CPU</th>
+          <th>Cambio de proceso</th>
+          <th>Interacción</th>
+          <th>Novedad técnica</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="model-chip chip-serie">Serie</span></td>
+          <td>1</td>
+          <td>
+            <div class="usage-bar-wrap">
+              <div class="usage-bar"><div class="usage-fill" style="width:3%;background:var(--red)"></div></div>
+              <span class="usage-pct bad">~3%</span>
+            </div>
+          </td>
+          <td class="bad">Manual (humano)</td>
+          <td class="bad">No</td>
+          <td>Tarjetas perforadas</td>
+        </tr>
+        <tr>
+          <td><span class="model-chip chip-lotes">Lotes</span></td>
+          <td>1</td>
+          <td>
+            <div class="usage-bar-wrap">
+              <div class="usage-bar"><div class="usage-fill" style="width:3%;background:var(--accent1)"></div></div>
+              <span class="usage-pct mid">~3%</span>
+            </div>
+          </td>
+          <td class="mid">Al terminar programa</td>
+          <td class="bad">No</td>
+          <td>Monitor residente, protección mem.</td>
+        </tr>
+        <tr>
+          <td><span class="model-chip chip-multi">Multiprog.</span></td>
+          <td>N (varios)</td>
+          <td>
+            <div class="usage-bar-wrap">
+              <div class="usage-bar"><div class="usage-fill" style="width:75%;background:var(--green)"></div></div>
+              <span class="usage-pct good">~75%</span>
+            </div>
+          </td>
+          <td class="good">Al esperar E/S</td>
+          <td class="bad">No</td>
+          <td>Interrupciones de E/S, DMA</td>
+        </tr>
+        <tr>
+          <td><span class="model-chip chip-ts">T. compartido</span></td>
+          <td>N (muchos)</td>
+          <td>
+            <div class="usage-bar-wrap">
+              <div class="usage-bar"><div class="usage-fill" style="width:90%;background:var(--accent2)"></div></div>
+              <span class="usage-pct" style="color:var(--accent2)">~90%</span>
+            </div>
+          </td>
+          <td class="good">Por timer (proactivo)</td>
+          <td class="good">Sí</td>
+          <td>Timer, quantum, swap a disco</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <div class="footer-note reveal">
+    <div class="footer-icon">📚</div>
+    <div>
+      <div class="footer-note-title">Bibliografía</div>
+      <p>Esta infografía resume los contenidos de la Unidad 1 — Introducción a los Sistemas Operativos, UTN BA Centro de e-Learning.</p>
+      <div class="footer-refs">
+        William Stallings · Sistemas Operativos · Pearson Education, 2005 ·
+        Andrew S. Tanenbaum · Modern Operating Systems · Pearson Education, 2009
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ── TAB SWITCHING ──
+function showModel(id, btn) {
+  document.querySelectorAll('.model-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── SCROLL REVEAL ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      observer.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// ── STAGGER ON LOAD ──
+document.querySelectorAll('.reveal').forEach((el, i) => {
+  el.style.transitionDelay = (i * 0.06) + 's';
+});
+</script>
+</body>
+</html>

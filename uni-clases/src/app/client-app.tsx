@@ -7,6 +7,7 @@ import GuestbookPanelShared from "@/components/GuestbookPanelShared";
 import NotesPanel from "@/components/NotesPanel";
 import NotesPanelShared from "@/components/NotesPanelShared";
 import ToastStack from "@/components/ToastStack";
+import InfograficasPanel from "@/components/InfograficasPanel";
 import TodayPanel from "@/components/TodayPanel";
 import Button from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -138,6 +139,11 @@ function ClientAppInner({
                 <a href="#apuntes">
                   <Button variant="soft" type="button">
                     Subir apuntes
+                  </Button>
+                </a>
+                <a href="#infografias">
+                  <Button variant="soft" type="button">
+                    Infografías
                   </Button>
                 </a>
                 <a href="#muro">
@@ -411,9 +417,12 @@ function ClientAppInner({
 
         <section className="mt-8 space-y-6">
           <div className="u-fade-up" style={{ animationDelay: "200ms" }}>
-            {sharedEnabled ? <NotesPanelShared onToast={push} /> : <NotesPanel onToast={push} />}
+            <InfograficasPanel />
           </div>
           <div className="u-fade-up" style={{ animationDelay: "240ms" }}>
+            {sharedEnabled ? <NotesPanelShared onToast={push} /> : <NotesPanel onToast={push} />}
+          </div>
+          <div className="u-fade-up" style={{ animationDelay: "280ms" }}>
             {sharedEnabled ? (
               <GuestbookPanelShared onToast={push} />
             ) : (

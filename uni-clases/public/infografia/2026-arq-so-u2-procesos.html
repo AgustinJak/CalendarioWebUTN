@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unidad 2: Procesos — Sistemas Operativos UTN BA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:     #0C0E14;
+  --bg2:    #12151E;
+  --bg3:    #181C28;
+  --bg4:    #1E2230;
+  --border: rgba(255,255,255,0.07);
+  --bord2:  rgba(255,255,255,0.13);
+  --text:   #E8E6DE;
+  --muted:  #7A7A8A;
+  --dim:    #50505F;
+
+  --nuevo:  #3ECFA0;
+  --listo:  #6EB5FF;
+  --exec:   #FF7B7B;
+  --bloq:   #FFB347;
+  --sal:    #888796;
+  --suspL:  #C77DFF;
+  --suspB:  #FF8C69;
+
+  --serif:  'DM Serif Display', Georgia, serif;
+  --mono:   'DM Mono', monospace;
+  --sans:   'Outfit', sans-serif;
+  --r:      10px;
+  --r2:     16px;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.65;
+  overflow-x:hidden;
+}
+
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:0.4;
+}
+body::after{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(110,181,255,0.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(110,181,255,0.025) 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;z-index:0;
+}
+
+.container{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:0 24px 100px;}
+
+/* ── HERO ── */
+.hero{text-align:center;padding:72px 0 48px;}
+.hero-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--nuevo);display:block;margin-bottom:18px;}
+.hero h1{font-family:var(--serif);font-size:clamp(40px,6vw,68px);line-height:1.0;margin-bottom:8px;}
+.hero h1 em{color:var(--listo);font-style:italic;}
+.hero-sub{font-size:16px;color:var(--muted);max-width:540px;margin:16px auto 0;font-weight:300;}
+.hero-line{width:60px;height:2px;background:linear-gradient(90deg,var(--listo),var(--nuevo));margin:32px auto;}
+
+/* ── SECTION ── */
+.section-label{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.section-title{font-family:var(--serif);font-size:clamp(22px,3vw,32px);margin-bottom:8px;}
+.section-title em{color:var(--nuevo);font-style:italic;}
+.section-desc{color:var(--muted);font-size:14px;max-width:640px;margin-bottom:28px;line-height:1.7;}
+.section-block{margin-bottom:60px;}
+
+/* ── CARD ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;}
+.card-header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.card-title{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.card-body{padding:24px;}
+
+/* ── MEMORY MAP ── */
+.mem-wrap{display:grid;grid-template-columns:180px 1fr;gap:32px;align-items:start;}
+@media(max-width:620px){.mem-wrap{grid-template-columns:1fr;}}
+
+.mem-map{border:1px solid var(--bord2);border-radius:var(--r);overflow:hidden;font-family:var(--mono);}
+.mem-seg{padding:12px 14px;border-bottom:1px solid var(--border);position:relative;}
+.mem-seg:last-child{border-bottom:none;}
+.mem-seg-name{font-size:12px;font-weight:500;margin-bottom:2px;}
+.mem-seg-hint{font-size:10px;color:var(--muted);}
+.mem-addr-badge{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font-size:9px;padding:2px 6px;border-radius:3px;letter-spacing:.06em;
+}
+.grows-tag{
+  display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin-top:3px;
+}
+
+.seg-ctx  {background:rgba(255,123,123,0.08);border-left:3px solid var(--exec);}
+.seg-stack{background:rgba(110,181,255,0.08);border-left:3px solid var(--listo);}
+.seg-free {background:rgba(255,255,255,0.02);border-left:3px solid transparent;}
+.seg-heap {background:rgba(62,207,160,0.08);border-left:3px solid var(--nuevo);}
+.seg-data {background:rgba(255,179,71,0.08);border-left:3px solid var(--bloq);}
+.seg-text {background:rgba(255,255,255,0.04);border-left:3px solid var(--sal);}
+
+.mem-legend{margin-top:0;}
+.mem-legend-item{display:flex;gap:10px;margin-bottom:14px;align-items:flex-start;}
+.mem-legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0;margin-top:3px;}
+.mem-legend-text{font-size:13px;color:var(--text);line-height:1.55;}
+.mem-legend-text strong{color:var(--text);display:block;margin-bottom:2px;}
+.mem-legend-text span{color:var(--muted);font-size:12px;}
+
+/* ── GLOSSARY INLINE ── */
+.gloss-term{
+  border-bottom:1px dashed var(--muted);cursor:help;color:var(--text);
+  position:relative;display:inline;
+}
+.gloss-term:hover .gloss-popup{display:block;}
+.gloss-popup{
+  display:none;position:absolute;bottom:calc(100% + 6px);left:0;
+  background:var(--bg4);border:1px solid var(--bord2);border-radius:var(--r);
+  padding:10px 14px;font-size:12px;color:var(--text);line-height:1.55;
+  white-space:normal;min-width:220px;max-width:300px;z-index:99;
+  font-style:normal;font-family:var(--sans);box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+
+/* ── CODE CHIP ── */
+.code-chip{
+  font-family:var(--mono);font-size:11px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:4px;padding:1px 7px;
+  color:var(--listo);white-space:nowrap;
+}
+.code-block{
+  font-family:var(--mono);font-size:12px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;
+  color:var(--text);line-height:1.8;margin-top:10px;overflow-x:auto;
+}
+.code-comment{color:var(--muted);}
+.code-key{color:var(--listo);}
+.code-val{color:var(--nuevo);}
+.code-label{color:var(--bloq);}
+
+/* ── BCP TABLE ── */
+.bcp-grid{display:grid;grid-template-columns:repeat(3,1fr);}
+@media(max-width:560px){.bcp-grid{grid-template-columns:1fr 1fr;}}
+.bcp-field{padding:12px 16px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
+.bcp-field:nth-child(3n){border-right:none;}
+.bcp-label{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.bcp-val{font-family:var(--mono);font-size:13px;font-weight:500;}
+.bcp-note{font-size:11px;color:var(--muted);margin-top:2px;font-family:var(--sans);}
+.bcp-cats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--bord2);}
+@media(max-width:560px){.bcp-cats{grid-template-columns:1fr;}}
+.bcp-cat{padding:10px 16px;border-right:1px solid var(--border);}
+.bcp-cat:last-child{border-right:none;}
+.bcp-cat-title{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px;}
+.bcp-cat-desc{font-size:11px;color:var(--muted);}
+
+/* ── STATE DIAGRAM ── */
+.state-tabs{display:flex;gap:0;border-bottom:1px solid var(--bord2);margin-bottom:24px;}
+.state-tab{
+  padding:9px 20px;border:none;background:transparent;
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);cursor:pointer;border-right:1px solid var(--border);transition:all .15s;
+}
+.state-tab:hover{background:var(--bg3);color:var(--text);}
+.state-tab.active{background:var(--text);color:var(--bg);}
+.state-panel{display:none;}
+.state-panel.active{display:block;}
+
+.diagram-box{
+  background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);
+  padding:24px;overflow-x:auto;margin-bottom:20px;
+}
+.diagram-box svg{display:block;min-width:500px;}
+
+/* state info cards */
+.sinfo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+@media(max-width:600px){.sinfo-grid{grid-template-columns:1fr;}}
+.sinfo-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;}
+.sinfo-tag{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.sinfo-title{font-size:14px;font-weight:600;margin-bottom:6px;}
+.sinfo-desc{font-size:12px;color:var(--muted);line-height:1.6;}
+
+/* ── TRANSITIONS TABLE ── */
+.trans-table{width:100%;border-collapse:collapse;font-size:13px;}
+.trans-table th{
+  background:var(--bg3);padding:10px 14px;text-align:left;
+  font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--muted);border-bottom:1px solid var(--bord2);
+}
+.trans-table td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.55;}
+.trans-table tr:last-child td{border-bottom:none;}
+.trans-table tr:hover td{background:var(--bg3);}
+.state-pill{
+  display:inline-block;padding:2px 10px;border-radius:999px;
+  font-family:var(--mono);font-size:11px;font-weight:500;border:1px solid;
+}
+
+/* ── CONTEXT SWITCH STEPS ── */
+.steps{counter-reset:sc;}
+.step{display:flex;gap:18px;margin-bottom:0;position:relative;}
+.step::before{
+  content:'';position:absolute;left:19px;top:42px;bottom:0;
+  width:1px;background:var(--border);
+}
+.step:last-child::before{display:none;}
+.step-num{
+  width:38px;height:38px;border-radius:50%;border:1px solid var(--bord2);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:13px;flex-shrink:0;
+  background:var(--bg3);z-index:1;margin-top:2px;
+}
+.step-body{padding-bottom:28px;flex:1;}
+.step-title{font-size:15px;font-weight:600;margin-bottom:4px;}
+.step-desc{font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:0;}
+
+/* ── EXCEPTIONS GRID ── */
+.exc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;}
+@media(max-width:600px){.exc-grid{grid-template-columns:1fr;}}
+.exc-card{padding:20px;border-right:1px solid var(--border);position:relative;overflow:hidden;}
+.exc-card:last-child{border-right:none;}
+.exc-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.exc-abort::before{background:var(--exec);}
+.exc-fault::before{background:var(--listo);}
+.exc-trap::before{background:var(--nuevo);}
+.exc-badge{
+  display:inline-block;padding:2px 8px;border-radius:3px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;
+}
+.exc-title{font-family:var(--mono);font-size:16px;font-weight:500;margin-bottom:8px;}
+.exc-desc{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:10px;}
+.exc-example{
+  font-family:var(--mono);font-size:11px;color:var(--muted);
+  background:var(--bg3);border-radius:4px;padding:7px 10px;line-height:1.7;
+}
+
+/* ── MODES ── */
+.modes-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:560px){.modes-grid{grid-template-columns:1fr;}}
+.mode-card{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
+.mode-header{padding:12px 16px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;}
+.mode-body{padding:16px;background:var(--bg2);}
+.mode-body p{font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:8px;}
+.mode-body p:last-child{margin-bottom:0;}
+.psw-demo{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.psw-bit{
+  width:28px;height:28px;border:1px solid var(--bord2);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:13px;font-weight:500;
+}
+.bit-0{background:var(--bg3);color:var(--muted);}
+.bit-1{background:var(--exec);color:var(--bg);border-color:var(--exec);}
+.psw-label{font-family:var(--mono);font-size:11px;color:var(--muted);}
+
+/* ── SO EXEC MODELS ── */
+.so-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;}
+@media(max-width:600px){.so-grid{grid-template-columns:1fr;}}
+.so-card{padding:20px;border-right:1px solid var(--border);}
+.so-card:last-child{border-right:none;}
+.so-num{font-family:var(--mono);font-size:32px;color:var(--border);line-height:1;margin-bottom:8px;font-weight:500;}
+.so-name{font-size:15px;font-weight:600;margin-bottom:8px;line-height:1.2;}
+.so-desc{font-size:12px;color:var(--muted);line-height:1.65;margin-bottom:10px;}
+.so-analogy{font-family:var(--mono);font-size:10px;color:var(--muted);background:var(--bg3);border-radius:4px;padding:5px 9px;border-left:2px solid var(--dim);}
+
+/* ── GLOSSARY SECTION ── */
+.gloss-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;}
+@media(max-width:560px){.gloss-grid{grid-template-columns:1fr;}}
+.gloss-entry{padding:14px 18px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);}
+.gloss-entry:nth-child(2n){border-right:none;}
+.gloss-entry:nth-last-child(-n+2){border-bottom:none;}
+.gloss-term-head{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--listo);margin-bottom:4px;}
+.gloss-def{font-size:12px;color:var(--muted);line-height:1.6;}
+.gloss-example{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:4px;}
+
+/* ── PULL QUOTE ── */
+.pull{
+  text-align:center;padding:40px 24px;margin:48px 0;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+}
+.pull q{
+  font-family:var(--serif);font-size:clamp(18px,3vw,26px);
+  font-style:italic;line-height:1.35;display:block;margin-bottom:12px;
+}
+.pull q em{color:var(--nuevo);}
+.pull cite{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;}
+
+/* ── FOOTER ── */
+.footer{
+  border-top:1px solid var(--border);padding-top:20px;margin-top:60px;
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;
+}
+.footer-bib{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.9;}
+.footer-badge{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right;line-height:1.9;}
+
+/* ── REVEAL ── */
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .5s ease,transform .5s ease;}
+.reveal.visible{opacity:1;transform:none;}
+
+/* DIAGRAM ARROWS SHARED */
+.arr-lbl{font-family:'DM Mono',monospace;font-size:10px;fill:#7A7A8A;}
+.state-ellipse{transition:filter .15s;cursor:default;}
+.state-ellipse:hover{filter:brightness(1.12);}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HERO -->
+  <header class="hero reveal">
+    <span class="hero-eyebrow">UTN BA · Sistemas Operativos · Unidad 2</span>
+    <h1>Pro<em>cesos</em></h1>
+    <p class="hero-sub">La abstracción central de cualquier sistema operativo. Todo lo demás depende de este concepto.</p>
+    <div class="hero-line"></div>
+  </header>
+
+  <!-- ① GLOSARIO RÁPIDO -->
+  <section class="section-block reveal">
+    <div class="section-label">Glosario de arranque</div>
+    <div class="section-title">Términos <em>esenciales</em></div>
+    <p class="section-desc">Si venís de otro rubro, estos términos aparecen constantemente. Leelos una vez antes de seguir.</p>
+
+    <div class="gloss-grid">
+      <div class="gloss-entry">
+        <div class="gloss-term-head">Proceso</div>
+        <div class="gloss-def">Un programa que está corriendo ahora mismo. No el archivo del programa guardado en disco, sino la "instancia viva" con memoria asignada y estado propio.</div>
+        <div class="gloss-example">ej: tenés abierto Chrome → eso es (al menos) un proceso activo</div>
+      </div>
+      <div class="gloss-entry">
+        <div class="gloss-term-head">Programa</div>
+        <div class="gloss-def">El archivo estático guardado en disco con las instrucciones. Es pasivo. Un mismo programa puede generar múltiples procesos simultáneos.</div>
+        <div class="gloss-example">ej: chrome.exe en tu disco duro = programa. Cada pestaña = proceso separado</div>
+      </div>
+      <div class="gloss-entry">
+        <div class="gloss-term-head">Dirección de memoria</div>
+        <div class="gloss-def">Un número que identifica una celda específica dentro de la memoria RAM, como un número de departamento en un edificio. Se escribe en hexadecimal por convención.</div>
+        <div class="gloss-example">0x00401A3F → casillero nro. 4,201,023 de la RAM (en decimal)</div>
+      </div>
+      <div class="gloss-entry">
+        <div class="gloss-term-head">Hexadecimal (0x…)</div>
+        <div class="gloss-def">Sistema de numeración en base 16 que usan las computadoras por ser más compacto que el decimal. El prefijo "0x" avisa que lo que sigue es hexadecimal.</div>
+        <div class="gloss-example">0xFF = 255 en decimal · 0x10 = 16 en decimal</div>
+      </div>
+      <div class="gloss-entry">
+        <div class="gloss-term-head">Registro del procesador</div>
+        <div class="gloss-def">Espacio de almacenamiento ultra-rápido dentro del chip del procesador. Guarda valores temporales durante la ejecución. Mucho más rápido que la RAM pero hay muy pocos.</div>
+        <div class="gloss-example">R0, R1… R7 = registros de propósito general · PC = registro especial con la dirección de la próxima instrucción</div>
+      </div>
+      <div class="gloss-entry">
+        <div class="gloss-term-head">PC (Program Counter)</div>
+        <div class="gloss-def">Registro especial que contiene la dirección de memoria de la próxima instrucción que el procesador va a ejecutar. Avanza automáticamente después de cada instrucción.</div>
+        <div class="gloss-example">Si PC = 0x004A → el procesador irá a buscar la instrucción guardada en el casillero 0x004A de la RAM</div>
+      </div>
+      <div class="gloss-entry">
+        <div class="gloss-term-head">PSW (Program Status Word)</div>
+        <div class="gloss-def">Un registro especial con bits que describen el estado actual del procesador: si hubo overflow, si el resultado fue cero, el modo de ejecución (usuario/kernel), etc.</div>
+        <div class="gloss-example">PSW = 0b00100110 → cada bit tiene un significado específico (como flags de semáforo)</div>
+      </div>
+      <div class="gloss-entry">
+        <div class="gloss-term-head">Syscall (llamada al sistema)</div>
+        <div class="gloss-def">Cuando un programa necesita algo del SO (leer un archivo, crear otro proceso, usar la red), ejecuta una "syscall": le pide al SO que haga esa tarea por él.</div>
+        <div class="gloss-example">open("archivo.txt") en tu código → internamente es una syscall al SO</div>
+      </div>
+      <div class="gloss-entry">
+        <div class="gloss-term-head">PID (Process ID)</div>
+        <div class="gloss-def">Número único que el SO le asigna a cada proceso cuando lo crea. Sirve para identificarlo y referenciarlo. Como un DNI del proceso.</div>
+        <div class="gloss-example">En Linux/Mac: escribí "ps aux" en terminal para ver los PIDs de tus procesos activos</div>
+      </div>
+      <div class="gloss-entry">
+        <div class="gloss-term-head">BCP / PCB</div>
+        <div class="gloss-def">Bloque de Control de Proceso (Process Control Block en inglés). Estructura de datos que el SO crea y mantiene con toda la info de un proceso: su estado, registros, archivos abiertos, etc.</div>
+        <div class="gloss-example">Es la "ficha técnica" del proceso. Sin ella, el SO no sabría cómo retomar su ejecución tras una pausa.</div>
+      </div>
+      <div class="gloss-entry">
+        <div class="gloss-term-head">Stack (Pila)</div>
+        <div class="gloss-def">Zona de memoria que crece y decrece automáticamente. Guarda el contexto de cada función llamada: sus variables locales, parámetros y la dirección de retorno.</div>
+        <div class="gloss-example">Llamás a función A(), que llama a B() → el stack tiene A encima de B. Cuando B() termina, se "desapila" y volvés a A.</div>
+      </div>
+      <div class="gloss-entry">
+        <div class="gloss-term-head">Heap (Montículo)</div>
+        <div class="gloss-def">Zona de memoria que el programa gestiona manualmente para estructuras de tamaño variable que viven más que una función. En C se usa malloc(), en Java/Python es automático.</div>
+        <div class="gloss-example">Creás una lista que puede crecer → esa memoria viene del heap · Se libera con free() en C o automáticamente en lenguajes modernos</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ② IMAGEN EN MEMORIA -->
+  <section class="section-block reveal">
+    <div class="section-label">01 · Definición</div>
+    <div class="section-title">Imagen del proceso en <em>memoria</em></div>
+    <p class="section-desc">Cuando el SO carga un proceso, lo organiza en zonas bien definidas dentro de la RAM. Cada zona tiene un propósito específico.</p>
+
+    <div class="card">
+      <div class="card-body">
+        <div class="mem-wrap">
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;margin-bottom:6px;letter-spacing:.1em">↑ DIRECCIÓN ALTA</div>
+            <div class="mem-map">
+              <div class="mem-seg seg-ctx">
+                <div class="mem-seg-name" style="color:var(--exec)">Contexto</div>
+                <div class="mem-seg-hint">PC, PSW, registros</div>
+              </div>
+              <div class="mem-seg seg-stack">
+                <div class="mem-seg-name" style="color:var(--listo)">Stack</div>
+                <div class="mem-seg-hint">pila de llamadas</div>
+                <span class="grows-tag">↓ crece hacia abajo</span>
+              </div>
+              <div class="mem-seg seg-free">
+                <div class="mem-seg-hint" style="text-align:center;padding:4px 0">⋯ espacio libre ⋯</div>
+              </div>
+              <div class="mem-seg seg-heap">
+                <div class="mem-seg-name" style="color:var(--nuevo)">Heap</div>
+                <div class="mem-seg-hint">memoria dinámica</div>
+                <span class="grows-tag">↑ crece hacia arriba</span>
+              </div>
+              <div class="mem-seg seg-data">
+                <div class="mem-seg-name" style="color:var(--bloq)">Datos</div>
+                <div class="mem-seg-hint">variables globales</div>
+              </div>
+              <div class="mem-seg seg-text" style="border-bottom:none">
+                <div class="mem-seg-name" style="color:var(--sal)">Texto</div>
+                <div class="mem-seg-hint">instrucciones (código)</div>
+              </div>
+            </div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;margin-top:6px;letter-spacing:.1em">↓ DIRECCIÓN BAJA</div>
+          </div>
+
+          <div class="mem-legend">
+            <div class="mem-legend-item">
+              <div class="mem-legend-dot" style="background:rgba(255,123,123,0.5)"></div>
+              <div class="mem-legend-text">
+                <strong style="color:var(--exec)">Contexto</strong>
+                <span>Fotografía del estado del procesador en el momento exacto en que el proceso fue pausado. Contiene PC (¿en qué instrucción íbamos?), PSW (¿qué flags había?) y el valor de todos los registros.</span>
+              </div>
+            </div>
+            <div class="mem-legend-item">
+              <div class="mem-legend-dot" style="background:rgba(110,181,255,0.5)"></div>
+              <div class="mem-legend-text">
+                <strong style="color:var(--listo)">Stack (Pila)</strong>
+                <span>Crece hacia abajo. Cada vez que tu código llama a una función, se apila un "frame" con sus variables locales y la dirección de retorno. Al salir de la función, se desapila.</span>
+              </div>
+            </div>
+            <div class="mem-legend-item">
+              <div class="mem-legend-dot" style="background:rgba(62,207,160,0.5)"></div>
+              <div class="mem-legend-text">
+                <strong style="color:var(--nuevo)">Heap</strong>
+                <span>Crece hacia arriba. Es la memoria que pedís explícitamente cuando necesitás estructuras de tamaño variable en tiempo de ejecución (listas, árboles, objetos).</span>
+              </div>
+            </div>
+            <div class="mem-legend-item">
+              <div class="mem-legend-dot" style="background:rgba(255,179,71,0.5)"></div>
+              <div class="mem-legend-text">
+                <strong style="color:var(--bloq)">Datos</strong>
+                <span>Variables globales y estáticas. Su tamaño se conoce al compilar y no cambia durante la ejecución.</span>
+              </div>
+            </div>
+            <div class="mem-legend-item">
+              <div class="mem-legend-dot" style="background:rgba(136,135,150,0.4)"></div>
+              <div class="mem-legend-text">
+                <strong style="color:var(--sal)">Texto</strong>
+                <span>Las instrucciones del programa en código máquina, tal como las leyó el SO desde el archivo en disco. Solo lectura: el programa no puede modificar su propio código.</span>
+              </div>
+            </div>
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-top:6px;font-size:13px;">
+              <strong style="color:var(--bloq)">⚠ Programa ≠ Proceso.</strong>
+              <span style="color:var(--muted)"> El programa es el archivo .exe (o binario) guardado en disco. El proceso es ese programa corriendo en memoria, con sus propios datos y contexto. Un mismo programa puede originar múltiples procesos simultáneos (ej: varias ventanas del mismo editor).</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ③ BCP -->
+  <section class="section-block reveal">
+    <div class="section-label">02 · Estructura de datos</div>
+    <div class="section-title">Bloque de Control de Proceso <em>(BCP)</em></div>
+    <p class="section-desc">El SO crea un BCP por cada proceso. Es su "expediente completo". A través del BCP el dispatcher puede pausar un proceso y retomarlo exactamente donde lo dejó.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">BCP — Proceso "navegador"</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--nuevo)">PID: 4821 · Estado: Listo</span>
+      </div>
+      <div class="bcp-grid">
+        <div class="bcp-field">
+          <div class="bcp-label">PID (identificador)</div>
+          <div class="bcp-val" style="color:var(--nuevo)">4821</div>
+          <div class="bcp-note">Número único asignado por el SO — como un DNI del proceso</div>
+        </div>
+        <div class="bcp-field">
+          <div class="bcp-label">Estado actual</div>
+          <div class="bcp-val" style="color:var(--listo)">Listo</div>
+          <div class="bcp-note">Puede recibir CPU en cualquier momento</div>
+        </div>
+        <div class="bcp-field">
+          <div class="bcp-label">Prioridad</div>
+          <div class="bcp-val">7 / 20</div>
+          <div class="bcp-note">Cuanto más alto, más chances de recibir CPU pronto</div>
+        </div>
+        <div class="bcp-field">
+          <div class="bcp-label">PC — próxima instrucción</div>
+          <div class="bcp-val" style="color:var(--exec)">0x00401A3F</div>
+          <div class="bcp-note">Casillero de RAM donde está la próxima instrucción a ejecutar</div>
+        </div>
+        <div class="bcp-field">
+          <div class="bcp-label">PSW — estado procesador</div>
+          <div class="bcp-val">0b00100110</div>
+          <div class="bcp-note">Bits de estado: modo ejecución, flags aritméticos, etc.</div>
+        </div>
+        <div class="bcp-field">
+          <div class="bcp-label">SP — tope del stack</div>
+          <div class="bcp-val" style="color:var(--listo)">0xFFBF8020</div>
+          <div class="bcp-note">Apunta al tope actual de la pila de llamadas</div>
+        </div>
+        <div class="bcp-field">
+          <div class="bcp-label">Registros R0–R7</div>
+          <div class="bcp-val" style="font-size:11px">07 · 0D · 00 · 1A · 03 · FF · 00 · 42</div>
+          <div class="bcp-note">Valores guardados de los 8 registros de propósito general al momento de la pausa</div>
+        </div>
+        <div class="bcp-field">
+          <div class="bcp-label">Límites de memoria</div>
+          <div class="bcp-val" style="font-size:11px">Base: 0x0040 · Lím: 0x1FFF</div>
+          <div class="bcp-note">El proceso solo puede tocar esta franja de RAM — protección entre procesos</div>
+        </div>
+        <div class="bcp-field">
+          <div class="bcp-label">Archivos abiertos</div>
+          <div class="bcp-val">fd[0, 1, 2, 7]</div>
+          <div class="bcp-note">Descriptores de archivo: fd0=stdin, fd1=stdout, fd2=stderr, fd7=un archivo propio</div>
+        </div>
+        <div class="bcp-field">
+          <div class="bcp-label">E/S pendiente</div>
+          <div class="bcp-val">disco #3 (lectura)</div>
+          <div class="bcp-note">Está esperando que el disco termine de leer datos que pidió</div>
+        </div>
+        <div class="bcp-field">
+          <div class="bcp-label">CPU acumulado</div>
+          <div class="bcp-val">0.342 seg</div>
+          <div class="bcp-note">Tiempo total que este proceso ha tenido la CPU desde que arrancó</div>
+        </div>
+        <div class="bcp-field">
+          <div class="bcp-label">PPID (proceso padre)</div>
+          <div class="bcp-val">1 — init/systemd</div>
+          <div class="bcp-note">Quién creó este proceso. El PID 1 es el primer proceso del sistema</div>
+        </div>
+      </div>
+      <div class="bcp-cats">
+        <div class="bcp-cat">
+          <div class="bcp-cat-title" style="color:var(--nuevo)">Identificación</div>
+          <div class="bcp-cat-desc">PID · PPID · usuario propietario · grupo</div>
+        </div>
+        <div class="bcp-cat">
+          <div class="bcp-cat-title" style="color:var(--listo)">Estado del procesador</div>
+          <div class="bcp-cat-desc">PC · SP · PSW · registros R0–Rn — todo lo necesario para retomar la ejecución</div>
+        </div>
+        <div class="bcp-cat">
+          <div class="bcp-cat-title" style="color:var(--bloq)">Control del proceso</div>
+          <div class="bcp-cat-desc">prioridad · E/S pendiente · archivos abiertos · límites de memoria · auditoría</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ④ ESTADOS -->
+  <section class="section-block reveal">
+    <div class="section-label">03 · Ciclo de vida</div>
+    <div class="section-title">Estados de un <em>proceso</em></div>
+    <p class="section-desc">El SO modela la vida de cada proceso como una máquina de estados. Los modelos evolucionaron para resolver problemas concretos. Explorá cada uno:</p>
+
+    <div class="state-tabs">
+      <button class="state-tab active" onclick="showState('2',this)">2 estados</button>
+      <button class="state-tab" onclick="showState('5',this)">5 estados</button>
+      <button class="state-tab" onclick="showState('7',this)">7 estados + swap</button>
+    </div>
+
+    <!-- == 2 ESTADOS == -->
+    <div class="state-panel active" id="sp-2">
+      <div class="diagram-box">
+        <svg viewBox="0 0 600 160" width="100%" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M1 1L9 5L1 9" fill="none" stroke="#7A7A8A" stroke-width="1.5" stroke-linecap="round"/>
+            </marker>
+          </defs>
+          <!-- Entrada -->
+          <text x="32" y="86" class="arr-lbl" text-anchor="middle">Entrada</text>
+          <line x1="55" y1="80" x2="98" y2="80" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a2)"/>
+          <!-- No Ejecutando -->
+          <ellipse cx="185" cy="80" rx="80" ry="38" fill="rgba(110,181,255,0.1)" stroke="#6EB5FF" stroke-width="1.5" class="state-ellipse"/>
+          <text x="185" y="74" font-family="DM Mono" font-size="12" font-weight="500" fill="#6EB5FF" text-anchor="middle">No</text>
+          <text x="185" y="90" font-family="DM Mono" font-size="12" font-weight="500" fill="#6EB5FF" text-anchor="middle">Ejecutando</text>
+          <!-- Ejecutando -->
+          <ellipse cx="430" cy="80" rx="75" ry="38" fill="rgba(255,123,123,0.1)" stroke="#FF7B7B" stroke-width="1.5" class="state-ellipse"/>
+          <text x="430" y="85" font-family="DM Mono" font-size="12" font-weight="500" fill="#FF7B7B" text-anchor="middle">Ejecutando</text>
+          <!-- Activación -->
+          <path d="M265 65 Q347 30 353 60" fill="none" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a2)"/>
+          <text x="310" y="34" class="arr-lbl" text-anchor="middle">Activación (dispatcher)</text>
+          <!-- Detención -->
+          <path d="M357 102 Q345 130 272 100" fill="none" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a2)"/>
+          <text x="315" y="142" class="arr-lbl" text-anchor="middle">Detención / interrupción</text>
+          <!-- Salida -->
+          <line x1="505" y1="80" x2="558" y2="80" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a2)"/>
+          <text x="575" y="84" class="arr-lbl" text-anchor="middle">Sale</text>
+        </svg>
+      </div>
+      <div class="sinfo-grid">
+        <div class="sinfo-card">
+          <div class="sinfo-tag">Problema que tiene</div>
+          <div class="sinfo-title" style="color:var(--exec)">Una cola para todo</div>
+          <div class="sinfo-desc">Los procesos listos para correr y los que están bloqueados esperando el disco comparten la misma cola. El dispatcher no puede distinguirlos y pierde tiempo revisando procesos que no pueden ejecutar.</div>
+        </div>
+        <div class="sinfo-card">
+          <div class="sinfo-tag">Dispatcher</div>
+          <div class="sinfo-title" style="color:var(--listo)">¿Qué es el dispatcher?</div>
+          <div class="sinfo-desc">Un pequeño programa dentro del SO encargado de hacer el intercambio: pausa el proceso actual, guarda su BCP y activa el siguiente de la cola. Es el "semáforo" del procesador.</div>
+        </div>
+        <div class="sinfo-card">
+          <div class="sinfo-tag">Solución</div>
+          <div class="sinfo-title" style="color:var(--nuevo)">→ Pasar al modelo de 5</div>
+          <div class="sinfo-desc">Dividir "No Ejecutando" en dos estados ("Listo" y "Bloqueado") permite al SO saber exactamente cuáles pueden recibir CPU ahora y cuáles no.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- == 5 ESTADOS == -->
+    <div class="state-panel" id="sp-5">
+      <div class="diagram-box">
+        <svg viewBox="0 0 700 280" width="100%" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M1 1L9 5L1 9" fill="none" stroke="#7A7A8A" stroke-width="1.5" stroke-linecap="round"/>
+            </marker>
+          </defs>
+
+          <!-- NUEVO -->
+          <ellipse cx="80" cy="110" rx="64" ry="34" fill="rgba(62,207,160,0.1)" stroke="#3ECFA0" stroke-width="1.5" class="state-ellipse"/>
+          <text x="80" y="115" font-family="DM Mono" font-size="12" font-weight="500" fill="#3ECFA0" text-anchor="middle">Nuevo</text>
+
+          <!-- LISTO -->
+          <ellipse cx="280" cy="110" rx="68" ry="34" fill="rgba(110,181,255,0.1)" stroke="#6EB5FF" stroke-width="1.5" class="state-ellipse"/>
+          <text x="280" y="115" font-family="DM Mono" font-size="12" font-weight="500" fill="#6EB5FF" text-anchor="middle">Listo</text>
+
+          <!-- EJECUTANDO -->
+          <ellipse cx="490" cy="110" rx="74" ry="34" fill="rgba(255,123,123,0.1)" stroke="#FF7B7B" stroke-width="1.5" class="state-ellipse"/>
+          <text x="490" y="115" font-family="DM Mono" font-size="12" font-weight="500" fill="#FF7B7B" text-anchor="middle">Ejecutando</text>
+
+          <!-- SALIENTE -->
+          <ellipse cx="655" cy="110" rx="54" ry="34" fill="rgba(136,135,150,0.1)" stroke="#888796" stroke-width="1.5" class="state-ellipse"/>
+          <text x="655" y="115" font-family="DM Mono" font-size="12" font-weight="500" fill="#888796" text-anchor="middle">Saliente</text>
+
+          <!-- BLOQUEADO (centrado bajo Listo+Ejecutando) -->
+          <ellipse cx="385" cy="228" rx="68" ry="34" fill="rgba(255,179,71,0.1)" stroke="#FFB347" stroke-width="1.5" class="state-ellipse"/>
+          <text x="385" y="233" font-family="DM Mono" font-size="12" font-weight="500" fill="#FFB347" text-anchor="middle">Bloqueado</text>
+
+          <!-- Nuevo → Listo (Admisión) -->
+          <line x1="145" y1="110" x2="210" y2="110" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a5)"/>
+          <text x="177" y="100" class="arr-lbl" text-anchor="middle">Admisión</text>
+
+          <!-- Listo → Ejecutando (Activación, curva arriba) -->
+          <path d="M348 96 Q418 64 414 96" fill="none" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a5)"/>
+          <text x="383" y="60" class="arr-lbl" text-anchor="middle">Activación</text>
+
+          <!-- Ejecutando → Listo (Temporización, curva abajo) -->
+          <path d="M418 126 Q380 158 354 128" fill="none" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a5)"/>
+          <text x="388" y="168" class="arr-lbl" text-anchor="middle">Temporización</text>
+
+          <!-- Ejecutando → Saliente -->
+          <line x1="564" y1="110" x2="599" y2="110" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a5)"/>
+          <text x="581" y="100" class="arr-lbl" text-anchor="middle">Salida</text>
+
+          <!-- Ejecutando → Bloqueado (diagonal desde Ejecutando hacia abajo-izquierda) -->
+          <path d="M470 143 L440 194" fill="none" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a5)"/>
+          <text x="476" y="178" class="arr-lbl">Espera evento</text>
+
+          <!-- Bloqueado → Listo (diagonal desde Bloqueado hacia arriba-izquierda) -->
+          <path d="M318 214 L310 148" fill="none" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a5)"/>
+          <text x="278" y="188" class="arr-lbl" text-anchor="middle">Sucede evento</text>
+
+          <!-- Listo → Saliente (arco alto, proceso hijo terminado por padre) -->
+          <path d="M340 80 Q490 20 598 88" fill="none" stroke="#50505F" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a5)"/>
+          <text x="470" y="28" font-family="DM Mono" font-size="9" fill="#50505F" text-anchor="middle">padre termina proceso hijo</text>
+        </svg>
+      </div>
+      <div class="sinfo-grid">
+        <div class="sinfo-card">
+          <div class="sinfo-tag">Nuevo → Listo</div>
+          <div class="sinfo-title" style="color:var(--nuevo)">Admisión</div>
+          <div class="sinfo-desc">El SO creó el BCP y asignó memoria. El proceso ya está en RAM listo para correr. El SO puede demorar este paso si la RAM está muy cargada.</div>
+        </div>
+        <div class="sinfo-card">
+          <div class="sinfo-tag">Ejecutando → Bloqueado</div>
+          <div class="sinfo-title" style="color:var(--bloq)">Espera de E/S</div>
+          <div class="sinfo-desc">El proceso pidió leer un archivo. Leer del disco tarda ~1 millón de veces más que una instrucción de CPU. En lugar de esperar, el SO pausa el proceso y activa otro.</div>
+        </div>
+        <div class="sinfo-card">
+          <div class="sinfo-tag">Ejecutando → Listo</div>
+          <div class="sinfo-title" style="color:var(--exec)">Temporización</div>
+          <div class="sinfo-desc">El timer expiró. El proceso agotó su quantum (ración de tiempo). Vuelve a la cola de Listos para dar paso al siguiente. Puede ser reactivado pronto.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- == 7 ESTADOS == -->
+    <div class="state-panel" id="sp-7">
+      <div class="diagram-box">
+        <!--
+          LAYOUT 7 estados — posiciones planeadas:
+          Fila superior (y=80):  Nuevo(90), Listo(280), Ejecutando(480), Saliente(640)
+          Fila media  (y=200):  Bloqueado(280)
+          Fila inferior(y=310): Listo/Susp(90), BloqSusp(280)
+          Zona swap: rectángulo x=20,y=250 w=340 h=140
+
+          Flechas:
+          Nuevo→Listo          (admisión, horizontal fila sup)
+          Nuevo→ListoSusp      (sin RAM, vertical bajando)
+          Listo→Ejecutando     (activación, arco arriba)
+          Ejecutando→Listo     (temporización, arco abajo)
+          Ejecutando→Saliente  (salida, horizontal)
+          Ejecutando→Bloqueado (espera evento, bajando vertical)
+          Bloqueado→Listo      (sucede evento, subiendo vertical)
+          Bloqueado→BloqSusp   (suspensión, bajando)
+          BloqSusp→ListoSusp   (sucede evento, horizontal izquierda)
+          ListoSusp→Listo      (reactivación, diagonal subiendo derecha)
+          ListoSusp→BloqSusp   (no hay transición directa listo→bloq en susp)
+        -->
+        <svg viewBox="0 0 700 400" width="100%" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="a7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M1 1L9 5L1 9" fill="none" stroke="#7A7A8A" stroke-width="1.5" stroke-linecap="round"/>
+            </marker>
+            <marker id="a7g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M1 1L9 5L1 9" fill="none" stroke="#50505F" stroke-width="1.5" stroke-linecap="round"/>
+            </marker>
+          </defs>
+
+          <!-- SWAP ZONE -->
+          <rect x="16" y="258" width="360" height="126" rx="6"
+                fill="rgba(255,255,255,0.015)" stroke="rgba(255,255,255,0.1)"
+                stroke-width="1" stroke-dasharray="5 4"/>
+          <text x="196" y="280" font-family="DM Mono" font-size="9" fill="#50505F"
+                text-anchor="middle" letter-spacing="0.14em">SWAP — EN DISCO (no en RAM)</text>
+
+          <!-- ── ESTADOS ── -->
+          <!-- NUEVO (90, 80) -->
+          <ellipse cx="90" cy="80" rx="64" ry="30" fill="rgba(62,207,160,0.1)" stroke="#3ECFA0" stroke-width="1.5" class="state-ellipse"/>
+          <text x="90" y="85" font-family="DM Mono" font-size="11" font-weight="500" fill="#3ECFA0" text-anchor="middle">Nuevo</text>
+
+          <!-- LISTO (300, 80) -->
+          <ellipse cx="300" cy="80" rx="70" ry="30" fill="rgba(110,181,255,0.1)" stroke="#6EB5FF" stroke-width="1.5" class="state-ellipse"/>
+          <text x="300" y="85" font-family="DM Mono" font-size="11" font-weight="500" fill="#6EB5FF" text-anchor="middle">Listo</text>
+
+          <!-- EJECUTANDO (490, 80) -->
+          <ellipse cx="490" cy="80" rx="72" ry="30" fill="rgba(255,123,123,0.1)" stroke="#FF7B7B" stroke-width="1.5" class="state-ellipse"/>
+          <text x="490" y="85" font-family="DM Mono" font-size="11" font-weight="500" fill="#FF7B7B" text-anchor="middle">Ejecutando</text>
+
+          <!-- SALIENTE (640, 80) -->
+          <ellipse cx="640" cy="80" rx="52" ry="30" fill="rgba(136,135,150,0.1)" stroke="#888796" stroke-width="1.5" class="state-ellipse"/>
+          <text x="640" y="85" font-family="DM Mono" font-size="11" font-weight="500" fill="#888796" text-anchor="middle">Saliente</text>
+
+          <!-- BLOQUEADO (300, 195) -->
+          <ellipse cx="300" cy="195" rx="70" ry="30" fill="rgba(255,179,71,0.1)" stroke="#FFB347" stroke-width="1.5" class="state-ellipse"/>
+          <text x="300" y="200" font-family="DM Mono" font-size="11" font-weight="500" fill="#FFB347" text-anchor="middle">Bloqueado</text>
+
+          <!-- LISTO/SUSPENDIDO (110, 330) -->
+          <ellipse cx="110" cy="330" rx="80" ry="30" fill="rgba(199,125,255,0.1)" stroke="#C77DFF" stroke-width="1.5" class="state-ellipse"/>
+          <text x="110" y="325" font-family="DM Mono" font-size="10" font-weight="500" fill="#C77DFF" text-anchor="middle">Listo /</text>
+          <text x="110" y="340" font-family="DM Mono" font-size="10" font-weight="500" fill="#C77DFF" text-anchor="middle">Suspendido</text>
+
+          <!-- BLOQUEADO/SUSPENDIDO (300, 330) -->
+          <ellipse cx="300" cy="330" rx="84" ry="30" fill="rgba(255,140,105,0.1)" stroke="#FF8C69" stroke-width="1.5" class="state-ellipse"/>
+          <text x="300" y="325" font-family="DM Mono" font-size="10" font-weight="500" fill="#FF8C69" text-anchor="middle">Bloqueado /</text>
+          <text x="300" y="340" font-family="DM Mono" font-size="10" font-weight="500" fill="#FF8C69" text-anchor="middle">Suspendido</text>
+
+          <!-- ── FLECHAS ── -->
+
+          <!-- Nuevo → Listo (admisión, horizontal) -->
+          <line x1="155" y1="80" x2="228" y2="80" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a7)"/>
+          <text x="191" y="70" class="arr-lbl" text-anchor="middle">Admisión</text>
+
+          <!-- Nuevo → Listo/Suspendido (sin RAM, baja vertical desde Nuevo) -->
+          <line x1="90" y1="110" x2="90" y2="298" stroke="#50505F" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#a7g)"/>
+          <text x="52" y="210" class="arr-lbl" text-anchor="middle" font-size="9">sin RAM</text>
+
+          <!-- Listo → Ejecutando (activación, arco sobre) -->
+          <path d="M370 66 Q428 38 416 66" fill="none" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a7)"/>
+          <text x="396" y="36" class="arr-lbl" text-anchor="middle">Activación</text>
+
+          <!-- Ejecutando → Listo (temporización, arco bajo) -->
+          <path d="M420 96 Q384 126 372 98" fill="none" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a7)"/>
+          <text x="400" y="132" class="arr-lbl" text-anchor="middle">Temporización</text>
+
+          <!-- Ejecutando → Saliente -->
+          <line x1="562" y1="80" x2="586" y2="80" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a7)"/>
+          <text x="573" y="70" class="arr-lbl" text-anchor="middle">Salida</text>
+
+          <!-- Ejecutando → Bloqueado (vertical bajando, desde lado derecho de Ejecutando hacia top de Bloqueado, evitando Listo) -->
+          <path d="M490 110 L490 165 L372 165 L372 164" fill="none" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a7)"/>
+          <text x="544" y="148" class="arr-lbl">Espera evento</text>
+
+          <!-- Bloqueado → Listo (vertical subiendo, lado izquierdo) -->
+          <path d="M230 182 L230 110 L228 110" fill="none" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a7)"/>
+          <text x="186" y="152" class="arr-lbl" text-anchor="end">Sucede evento</text>
+
+          <!-- Bloqueado → Bloqueado/Suspendido (vertical bajando) -->
+          <line x1="300" y1="225" x2="300" y2="298" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a7)"/>
+          <text x="340" y="264" class="arr-lbl">Suspensión</text>
+
+          <!-- Bloqueado/Suspendido → Listo/Suspendido (sucede evento, horizontal izquierda) -->
+          <line x1="215" y1="330" x2="192" y2="330" stroke="#7A7A8A" stroke-width="1.2" marker-end="url(#a7)"/>
+          <text x="203" y="322" class="arr-lbl" text-anchor="middle">evento</text>
+
+          <!-- Listo/Suspendido → Listo (reactivación, diagonal derecha-arriba) -->
+          <path d="M178 312 L240 100" fill="none" stroke="#C77DFF" stroke-width="1.4" marker-end="url(#a7)"/>
+          <text x="222" y="214" font-family="DM Mono" font-size="10" fill="#C77DFF" text-anchor="end">Reactivación</text>
+
+          <!-- Listo → Listo/Suspendido (suspensión, diagonal izquierda-abajo) -->
+          <path d="M242 104 L175 308" fill="none" stroke="#50505F" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a7g)"/>
+          <text x="186" y="220" font-family="DM Mono" font-size="9" fill="#50505F" text-anchor="start">Suspensión</text>
+        </svg>
+      </div>
+      <div class="sinfo-grid">
+        <div class="sinfo-card">
+          <div class="sinfo-tag">Problema que resuelve</div>
+          <div class="sinfo-title" style="color:var(--exec)">RAM llena, todos bloqueados</div>
+          <div class="sinfo-desc">Sin swap: si todos los procesos en RAM están esperando E/S, el procesador queda ocioso y no se pueden admitir procesos nuevos. El swap libera RAM moviéndolos al disco.</div>
+        </div>
+        <div class="sinfo-card">
+          <div class="sinfo-tag">Listo/Suspendido</div>
+          <div class="sinfo-title" style="color:var(--suspL)">Listo pero en disco</div>
+          <div class="sinfo-desc">El proceso no está esperando ningún evento — podría correr ahora mismo — pero su imagen fue movida al disco para liberar RAM. Al reactivarse, se carga de vuelta y pasa a Listo.</div>
+        </div>
+        <div class="sinfo-card">
+          <div class="sinfo-tag">Concepto clave</div>
+          <div class="sinfo-title" style="color:var(--bloq)">Swap es una operación de E/S</div>
+          <div class="sinfo-desc">Mover un proceso entre RAM y disco es costoso (puede tardar varios milisegundos). El SO lo hace solo cuando no queda otra opción y usa estadísticas para minimizarlo.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ⑤ CONTEXT SWITCH -->
+  <div class="pull reveal">
+    <q>Un proceso pausado debe poder <em>reanudarse exactamente</em> donde fue interrumpido, como si nunca hubiera parado.</q>
+    <cite>— Principio del context switch</cite>
+  </div>
+
+  <section class="section-block reveal">
+    <div class="section-label">04 · Mecanismo central</div>
+    <div class="section-title"><em>Context switch</em> — paso a paso</div>
+    <p class="section-desc">Un cambio de contexto ocurre cada vez que el SO recupera el control del procesador. Puede ser por interrupción de timer, por E/S completada, o por una syscall del propio proceso.</p>
+
+    <div class="card">
+      <div class="card-body" style="padding:28px 32px">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="color:var(--exec)">1</div>
+            <div class="step-body">
+              <div class="step-title">El procesador detecta la señal de interrupción</div>
+              <div class="step-desc">Al terminar la instrucción en curso, el procesador revisa su registro de interrupciones. Si hay una señal pendiente (timer expirado, disco listo, syscall), suspende el ciclo normal de fetch-decode-execute.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--bloq)">2</div>
+            <div class="step-body">
+              <div class="step-title">Cambio de modo: usuario → kernel (modo núcleo)</div>
+              <div class="step-desc">Un bit dentro del PSW cambia de 0 (modo usuario, restringido) a 1 (modo kernel, privilegiado). Ahora el procesador puede ejecutar instrucciones del SO que el proceso de usuario no podía.</div>
+              <div class="code-block">
+                <span class="code-comment">-- Antes de la interrupción:</span><br>
+                PSW = <span class="code-val">0b0010<strong>0</strong>110</span>  <span class="code-comment">← bit de modo = 0 (usuario)</span><br>
+                <br>
+                <span class="code-comment">-- Después, al entrar al SO:</span><br>
+                PSW = <span class="code-val">0b0010<strong>1</strong>110</span>  <span class="code-comment">← bit de modo = 1 (kernel)</span>
+              </div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--listo)">3</div>
+            <div class="step-body">
+              <div class="step-title">El SO guarda el contexto completo del proceso actual en su BCP</div>
+              <div class="step-desc">Todos los registros del procesador se copian a la entrada del proceso en la process table. Es como sacar una fotografía exacta del estado de la CPU en este instante.</div>
+              <div class="code-block">
+                <span class="code-comment">-- SO guarda en BCP[PID=4821]:</span><br>
+                <span class="code-key">PC</span>  ← <span class="code-val">0x00401A3F</span>  <span class="code-comment">← "íbamos en el casillero 4,201,023 de RAM"</span><br>
+                <span class="code-key">PSW</span> ← <span class="code-val">0b00100110</span>  <span class="code-comment">← estado de los flags</span><br>
+                <span class="code-key">R0</span>  ← <span class="code-val">0x07</span>, <span class="code-key">R1</span> ← <span class="code-val">0x0D</span> ...  <span class="code-comment">← valores de los registros</span>
+              </div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--nuevo)">4</div>
+            <div class="step-body">
+              <div class="step-title">El SO atiende la interrupción y el scheduler elige el próximo proceso</div>
+              <div class="step-desc">Si fue una interrupción de E/S, el SO mueve los procesos que esperaban ese evento a estado Listo. Luego el scheduler revisa la cola de Listos y elige el de mayor prioridad.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--bloq)">5</div>
+            <div class="step-body">
+              <div class="step-title">Se restaura el contexto del proceso elegido desde su BCP</div>
+              <div class="step-desc">Los valores guardados en el BCP del proceso elegido se cargan en los registros del hardware. El PC apunta exactamente donde ese proceso había quedado la última vez.</div>
+              <div class="code-block">
+                <span class="code-comment">-- SO carga desde BCP[PID=3210] al hardware:</span><br>
+                <span class="code-label">Procesador.PC</span>  ← <span class="code-val">0x00802B10</span>  <span class="code-comment">← continuará desde acá</span><br>
+                <span class="code-label">Procesador.PSW</span> ← <span class="code-val">0b01001100</span>  <span class="code-comment">← su estado de flags</span><br>
+                <span class="code-label">Procesador.R0</span>  ← <span class="code-val">0x2A</span>, <span class="code-label">R1</span> ← <span class="code-val">0x00</span> ...
+              </div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--nuevo)">6</div>
+            <div class="step-body">
+              <div class="step-title">Modo kernel → usuario. El proceso continúa como si nada</div>
+              <div class="step-desc">El bit de modo en PSW vuelve a 0. El nuevo proceso ejecuta la instrucción a la que apunta su PC. Para él, el tiempo simplemente "pasó" — no sabe que fue suspendido.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ⑥ MODOS DE EJECUCIÓN -->
+  <section class="section-block reveal">
+    <div class="section-label">05 · Hardware</div>
+    <div class="section-title">Modos de <em>ejecución</em></div>
+    <p class="section-desc">El procesador tiene dos "niveles de confianza". Esta separación es lo que impide que un proceso de usuario rompa el sistema operativo.</p>
+
+    <div class="modes-grid">
+      <div class="mode-card">
+        <div class="mode-header" style="background:rgba(110,181,255,0.12);color:var(--listo)">Modo Usuario — bit PSW = 0</div>
+        <div class="mode-body">
+          <p>Ejecutan todos los programas comunes. Acceso restringido: no pueden ejecutar instrucciones que afecten a otros procesos ni acceder directamente al hardware.</p>
+          <p>Si un proceso intenta ejecutar una instrucción privilegiada en modo usuario → excepción (trap). El SO toma el control e investiga qué pasó.</p>
+          <div class="psw-demo">
+            <span class="psw-label">Bit de modo:</span>
+            <div class="psw-bit bit-0">0</div>
+            <span class="psw-label">= modo usuario (restringido)</span>
+          </div>
+        </div>
+      </div>
+      <div class="mode-card">
+        <div class="mode-header" style="background:rgba(255,123,123,0.12);color:var(--exec)">Modo Kernel / Núcleo — bit PSW = 1</div>
+        <div class="mode-body">
+          <p>Solo ejecuta el sistema operativo. Control absoluto sobre el procesador: puede ejecutar cualquier instrucción, acceder a cualquier dirección de memoria, modificar el hardware.</p>
+          <p>Se activa automáticamente al recibir una interrupción, excepción o syscall. Al terminar la rutina del SO, vuelve a modo usuario.</p>
+          <div class="psw-demo">
+            <span class="psw-label">Bit de modo:</span>
+            <div class="psw-bit bit-1">1</div>
+            <span class="psw-label">= modo kernel (privilegiado)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ⑦ EXCEPCIONES -->
+  <section class="section-block reveal">
+    <div class="section-label">06 · Manejo de errores</div>
+    <div class="section-title">Tipos de <em>excepciones</em></div>
+    <p class="section-desc">Las excepciones son eventos anormales generados por el propio proceso (no por hardware externo). Se clasifican por qué tan recuperable es el error:</p>
+
+    <div class="exc-grid card">
+      <div class="exc-card exc-abort" style="background:var(--bg2)">
+        <div class="exc-badge" style="background:rgba(255,123,123,0.12);color:var(--exec)">Fatal · irrecuperable</div>
+        <div class="exc-title" style="color:var(--exec)">Abort</div>
+        <div class="exc-desc">Error tan grave que el SO no puede saber exactamente qué instrucción lo causó ni puede reiniciar el programa. El proceso pasa directo a estado Saliente.</div>
+        <div class="exc-example">
+          ej: corrupción interna · error de hardware crítico · valor ilegal en tablas del sistema
+        </div>
+      </div>
+      <div class="exc-card exc-fault" style="background:var(--bg2)">
+        <div class="exc-badge" style="background:rgba(110,181,255,0.12);color:var(--listo)">Recuperable · reintenta</div>
+        <div class="exc-title" style="color:var(--listo)">Fault</div>
+        <div class="exc-desc">Error que el SO puede corregir. Después de corregirlo, vuelve a ejecutar <em>la misma instrucción que falló</em>. El proceso no sabe que pasó nada.</div>
+        <div class="exc-example">
+          Page fault: el proceso pidió leer una dirección de RAM que en realidad está en disco. El SO carga la página desde disco y reintenta la instrucción. El proceso continúa.
+        </div>
+      </div>
+      <div class="exc-card exc-trap" style="background:var(--bg2)">
+        <div class="exc-badge" style="background:rgba(62,207,160,0.12);color:var(--nuevo)">Continúa · siguiente instrucción</div>
+        <div class="exc-title" style="color:var(--nuevo)">Trap</div>
+        <div class="exc-desc">Se reporta <em>después</em> de la instrucción que la generó. El SO maneja el evento y el proceso continúa desde la instrucción <em>siguiente</em> (no la que falló).</div>
+        <div class="exc-example">
+          Syscall open("archivo.txt"): el proceso ejecuta la instrucción de llamada, el SO abre el archivo, y el proceso continúa desde la instrucción siguiente con el resultado.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ⑧ MODELOS DE EJECUCIÓN DEL SO -->
+  <section class="section-block reveal">
+    <div class="section-label">07 · Diseño del SO</div>
+    <div class="section-title">¿Cómo ejecuta el <em>propio SO</em>?</div>
+    <p class="section-desc">El SO también es software — también necesita que el procesador lo ejecute. Existen tres enfoques para organizar esta relación, cada uno con analogías directas a los diseños de la Unidad 1:</p>
+
+    <div class="so-grid card">
+      <div class="so-card" style="background:var(--bg2)">
+        <div class="so-num">I</div>
+        <div class="so-name">Núcleo sin procesos</div>
+        <div class="so-desc">El SO es un bloque de código completamente separado de todos los procesos de usuario. Cada vez que un proceso es interrumpido, se hace un cambio de contexto completo al espacio del SO y luego de vuelta.</div>
+        <div class="so-analogy">Analogía Unidad 1: diseño monolítico o en capas</div>
+      </div>
+      <div class="so-card" style="background:var(--bg2)">
+        <div class="so-num">II</div>
+        <div class="so-name">Dentro del proceso de usuario</div>
+        <div class="so-desc">El SO se ejecuta en el contexto del proceso actual. Una syscall solo cambia el <em>modo</em> (usuario→kernel) dentro del mismo proceso, sin hacer un cambio de contexto completo. Más eficiente.</div>
+        <div class="so-analogy">Analogía Unidad 1: diseño microkernel</div>
+      </div>
+      <div class="so-card" style="background:var(--bg2)">
+        <div class="so-num">III</div>
+        <div class="so-name">SO basado en procesos</div>
+        <div class="so-desc">El SO es una colección de procesos de sistema independientes. Cada función principal (scheduler, driver de disco, etc.) es un proceso separado. Diseño modular con interfaces claras.</div>
+        <div class="so-analogy">Analogía Unidad 1: diseño cliente-servidor</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer reveal">
+    <div class="footer-bib">
+      Bibliografía · William Stallings — Sistemas Operativos, Pearson 2005<br>
+      Andrew S. Tanenbaum — Modern Operating Systems, Pearson 2009
+    </div>
+    <div class="footer-badge">
+      UTN BA · Centro de e-Learning<br>
+      Sistemas Operativos — Unidad 2 · Procesos
+    </div>
+  </footer>
+
+</div>
+
+<script>
+function showState(id, btn) {
+  document.querySelectorAll('.state-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.state-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('sp-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); }
+  });
+}, { threshold: 0.07 });
+
+document.querySelectorAll('.reveal').forEach((el, i) => {
+  el.style.transitionDelay = (i * 0.05) + 's';
+  obs.observe(el);
+});
+</script>
+</body>
+</html>
